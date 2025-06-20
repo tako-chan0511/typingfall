@@ -1,6 +1,6 @@
 <!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-container">
+  <div class="game-container" @click="focusInput">
     <header>
       <div class="stats">SCORE: <span>{{ score }}</span></div>
       <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -42,7 +42,6 @@
                   class="slider"
                 >
               </div>
-               <!-- ★★★ 単語数スライダーを追加 ★★★ -->
               <div v-if="difficulty === 'Practice'" class="setting-group">
                 <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
                 <input 
@@ -70,11 +69,23 @@
       <span>{{ currentInput }}</span>
       <span class="input-cursor"></span>
     </div>
+
+    <!-- ★★★ モバイル対応用の隠し入力欄 ★★★ -->
+    <input
+      ref="hiddenInputRef"
+      type="text"
+      class="hidden-input"
+      @input="handleMobileInput"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    >
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { wordList } from '../words';
 import type { Word, GameState, Difficulty } from '../types';
 
@@ -89,11 +100,12 @@ const gameState = ref<GameState>('start');
 // --- Game Settings ---
 const difficulty = ref<Difficulty>('Practice');
 const initialSpeed = ref(0.8);
-const practiceWordCount = ref(5); // ★ 練習モードの単語数を管理
+const practiceWordCount = ref(5);
 let currentBaseSpeed = 1.0;
 
 // --- Template Refs ---
 const gameAreaRef = ref<HTMLElement | null>(null);
+const hiddenInputRef = ref<HTMLInputElement | null>(null); // ★隠し入力欄への参照
 let animationFrameId: number;
 
 const gameSettings = {
@@ -102,9 +114,7 @@ const gameSettings = {
   Hard: { spawnRate: 90, fontSize: 36, fontMultiplier: 22 }
 };
 
-const vibrantColors = [
-    '#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'
-];
+const vibrantColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'];
 
 // --- Game Logic ---
 const initGame = () => {
@@ -116,7 +126,6 @@ const initGame = () => {
   gameState.value = 'playing';
   currentBaseSpeed = initialSpeed.value;
 
-  // ★ 練習モードの場合、最初に指定された数の単語を生成
   if (difficulty.value === 'Practice') {
     for (let i = 0; i < practiceWordCount.value; i++) {
       spawnWord();
@@ -126,6 +135,9 @@ const initGame = () => {
 
 const startGame = () => {
   initGame();
+  nextTick(() => {
+    focusInput();
+  });
   gameLoop();
 };
 
@@ -151,12 +163,11 @@ let frameCount = 0;
 const gameLoop = () => {
   if (gameState.value !== 'playing') return;
 
-  // ★ ゲームモードに応じて単語の生成方法を切り替え
   if (difficulty.value === 'Practice') {
     if (words.value.length < practiceWordCount.value) {
       spawnWord();
     }
-  } else { // NormalとHardモード
+  } else {
     frameCount++;
     if (frameCount % gameSettings[difficulty.value].spawnRate === 0) {
       spawnWord();
@@ -184,25 +195,38 @@ const gameOver = () => {
   cancelAnimationFrame(animationFrameId);
 };
 
+// ★★★ 物理キーボード用の入力処理 ★★★
 const handleKeyDown = (e: KeyboardEvent) => {
   if (gameState.value !== 'playing') return;
   
-  e.preventDefault();
-
   if (e.key === 'Backspace') {
+    e.preventDefault();
     currentInput.value = currentInput.value.slice(0, -1);
   } else if (e.key.length === 1 && e.key.match(/[a-z0-9-]/i)) {
+    e.preventDefault();
     currentInput.value += e.key.toLowerCase();
     checkInput();
   }
 };
+
+// ★★★ モバイル用の入力処理 ★★★
+const handleMobileInput = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  currentInput.value = target.value.toLowerCase();
+  checkInput();
+}
 
 const checkInput = () => {
   const index = words.value.findIndex(word => word.text === currentInput.value);
   if (index !== -1) {
     score.value += words.value[index].text.length * 10;
     words.value.splice(index, 1);
+    
+    // 入力欄をクリア
     currentInput.value = '';
+    if(hiddenInputRef.value) {
+      hiddenInputRef.value.value = '';
+    }
 
     if (score.value > level.value * 500) {
       level.value++;
@@ -212,6 +236,13 @@ const checkInput = () => {
     }
   }
 };
+
+// ★★★ 入力欄にフォーカスを当てる関数 ★★★
+const focusInput = () => {
+  if(hiddenInputRef.value) {
+    hiddenInputRef.value.focus();
+  }
+}
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
@@ -226,6 +257,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* (既存のスタイルは変更なし) */
+.hidden-input {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
 .game-container {
     width: 100%;
     max-width: 800px;
