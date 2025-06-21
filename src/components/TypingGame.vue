@@ -56,7 +56,7 @@
                 </div>
               </div>
               
-              <button @click="startGame" class="start-button">START GAME</button>
+              <button @click="startGame" class="start-button" ref="startButtonRef">START GAME</button>
           </div>
           <div v-if="gameState === 'gameover'">
               <h1>GAME OVER</h1>
@@ -66,7 +66,7 @@
         </div>
       </div>
     </div>
-    <div class="input-display">
+    <div class="input-display" ref="inputDisplayRef">
       <span>{{ currentInput }}</span>
       <span class="input-cursor"></span>
     </div>
@@ -76,6 +76,8 @@
       type="text"
       class="hidden-input"
       @input="handleMobileInput"
+      @focus="onInputFocus"
+      @blur="onInputBlur"
       autocomplete="off"
       autocorrect="off"
       autocapitalize="off"
@@ -89,15 +91,13 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { wordList } from '../words';
 import type { Word, GameState, Difficulty } from '../types';
 
-// --- Game State ---
+// --- Game State & Settings ---
 const score = ref(0);
 const level = ref(1);
 const lives = ref(5);
 const currentInput = ref('');
 const words = ref<Word[]>([]);
 const gameState = ref<GameState>('start');
-
-// --- Game Settings ---
 const difficulty = ref<Difficulty>('Practice');
 const initialSpeed = ref(0.8);
 const practiceWordCount = ref(5);
@@ -107,6 +107,8 @@ let currentBaseSpeed = 1.0;
 const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
 const hiddenInputRef = ref<HTMLInputElement | null>(null);
+const startButtonRef = ref<HTMLButtonElement | null>(null);
+const inputDisplayRef = ref<HTMLElement | null>(null);
 let animationFrameId: number;
 
 const gameSettings = {
@@ -198,9 +200,7 @@ const gameOver = () => {
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
-  
   e.preventDefault();
-
   if (e.key === 'Backspace') {
     currentInput.value = currentInput.value.slice(0, -1);
   } else if (e.key.length === 1 && e.key.match(/[a-z0-9-]/i)) {
@@ -220,12 +220,10 @@ const checkInput = () => {
   if (index !== -1) {
     score.value += words.value[index].text.length * 10;
     words.value.splice(index, 1);
-    
     currentInput.value = '';
     if(hiddenInputRef.value) {
       hiddenInputRef.value.value = '';
     }
-
     if (score.value > level.value * 500) {
       level.value++;
       if (difficulty.value !== 'Practice') {
@@ -240,6 +238,22 @@ const focusInput = () => {
     hiddenInputRef.value.focus();
   }
 }
+
+// ★★★ モバイル画面最適化のためのロジック ★★★
+const onInputFocus = () => {
+  // キーボードが表示された（入力欄にフォーカスが当たった）際に、
+  // ゲームコンテナを少し上にスクロールさせて入力欄が見えるようにする
+  setTimeout(() => {
+    if (inputDisplayRef.value) {
+      inputDisplayRef.value.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, 300); // iOSのキーボード表示アニメーションを待つ
+};
+
+const onInputBlur = () => {
+  // フォーカスが外れたら、元の位置に戻す
+  window.scrollTo(0, 0);
+};
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
@@ -257,9 +271,9 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    /* ★★★ 修正点: dvh（Dynamic Viewport Height）を使用 ★★★ */
-    height: 100dvh; 
-    max-height: 100dvh;
+    /* ★★★ iOSのSafariでも高さを正しく取得するために変更 ★★★ */
+    height: 100vh; 
+    height: 100dvh; /* Dynamic viewport heightを優先 */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -267,7 +281,7 @@ onUnmounted(() => {
     background-color: #010409;
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
-    /* transitionは不要になったため削除 */
+    overflow: hidden; /* ★ コンテナ自体はスクロールさせない */
 }
 
 header {
@@ -353,6 +367,7 @@ header {
     z-index: 10;
 }
 
+/* ★★★ モーダルのコンテンツをスクロール可能にするためのラッパー ★★★ */
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -360,15 +375,14 @@ header {
     align-items: center;
     text-align: center;
     width: 100%;
-    max-height: 100%;
-    overflow-y: auto;
+    max-height: 90%; /* ★高さを制限 */
+    overflow-y: auto; /* ★ コンテンツがはみ出たらスクロール */
     padding: 20px;
     box-sizing: border-box;
 }
 
-
 .modal h1 {
-    font-size: 4em;
+    font-size: 3em; /* 少し小さくして見切れにくくする */
     color: #58a6ff;
     text-shadow: 0 0 15px #58a6ff;
     margin-bottom: 20px;
@@ -383,7 +397,7 @@ header {
 .modal p {
     font-size: 1.2em;
     color: #8b949e;
-    max-width: 80%;
+    max-width: 90%;
     line-height: 1.6;
 }
 
@@ -414,6 +428,7 @@ header {
     gap: 20px;
     margin-top: 30px;
     align-items: center;
+    width: 100%;
 }
 
 .setting-group {
@@ -421,6 +436,7 @@ header {
     flex-direction: column;
     align-items: center;
     gap: 10px;
+    width: 100%;
 }
 
 .setting-group label {
@@ -430,13 +446,15 @@ header {
 
 .difficulty-selector {
     display: flex;
-    gap: 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .difficulty-selector button {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 1.2em;
-    padding: 10px 20px;
+    font-size: 1.1em;
+    padding: 10px 15px;
     margin: 0;
     border: 2px solid #8b949e;
     background-color: transparent;
@@ -454,7 +472,8 @@ header {
 
 .slider {
     -webkit-appearance: none;
-    width: 250px;
+    width: 90%;
+    max-width: 280px;
     height: 8px;
     background: #30363d;
     outline: none;
