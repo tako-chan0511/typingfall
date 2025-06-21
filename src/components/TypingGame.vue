@@ -1,5 +1,5 @@
 <template>
-  <div class="game-container" @click="focusInput">
+  <div class="game-container" ref="gameContainerRef" @click="focusInput">
     <header>
       <div class="stats">SCORE: <span>{{ score }}</span></div>
       <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -111,6 +111,7 @@ const displayInput = computed(() => {
 });
 
 // --- Template Refs ---
+const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
 const hiddenInputRef = ref<HTMLInputElement | null>(null);
 let animationFrameId: number;
@@ -237,7 +238,7 @@ watch(rawInput, (newValue, oldValue) => {
                 wordCompleted(activeWord.value);
             }
         } else {
-            rawInput.value = oldValue; // Mistype
+            rawInput.value = oldValue;
         }
     } else {
         const targetWord = words.value.find(w => w.target.startsWith(newValue));
@@ -249,7 +250,7 @@ watch(rawInput, (newValue, oldValue) => {
                 targetWord.typed = newValue;
             }
         } else {
-            rawInput.value = oldValue; // Mistype
+            rawInput.value = oldValue;
         }
     }
 });
@@ -279,40 +280,42 @@ const focusInput = () => {
   }
 };
 
+const handleViewportResize = () => {
+    if (gameContainerRef.value && window.visualViewport) {
+        const viewportHeight = window.visualViewport.height;
+        gameContainerRef.value.style.height = `${viewportHeight}px`;
+    }
+};
 
 onMounted(() => {
-  // PCのキーボード入力を隠し入力欄にリダイレクト
   window.addEventListener('keydown', (e) => {
     if ((e.key.length === 1 || e.key === 'Backspace') && gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
-      e.preventDefault();
       focusInput();
     }
   });
+  
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    handleViewportResize();
+  }
 });
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', focusInput);
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportResize);
+  }
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
 
 <style scoped>
-/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
-.game-wrapper {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  background-color: #0d1117;
-}
-
 .game-container {
     width: 100%;
     max-width: 800px;
-    /* ★★★ iOSのキーボード問題に対応する最新のCSS単位 ★★★ */
-    height: 100dvh; 
+    height: 100vh; /* フォールバック */
+    height: 100dvh; /* ★ iOSのキーボード表示問題を解決する最新のCSS単位 */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -321,8 +324,10 @@ onUnmounted(() => {
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
     overflow: hidden;
+    transition: height 0.15s ease-out; /* ★JSによる高さ変更を滑らかに */
 }
 
+/* (以下、他のスタイルは変更ありません) */
 header {
     display: flex;
     justify-content: space-between;
@@ -333,24 +338,20 @@ header {
     border-top-right-radius: 10px;
     flex-shrink: 0;
 }
-
 .stats {
     font-size: 1.4em;
     letter-spacing: 2px;
 }
-
 .stats span {
     color: #58a6ff;
     font-weight: bold;
 }
-
 .game-area {
     flex-grow: 1;
     position: relative;
     overflow: hidden;
     min-height: 0;
 }
-
 .word {
     position: absolute;
     font-family: 'Share Tech Mono', monospace;
@@ -362,14 +363,12 @@ header {
     align-items: center;
     padding: 4px 8px;
 }
-
 .word.active {
   background-color: rgba(88, 166, 255, 0.2);
   border-radius: 6px;
   transform: scale(1.1);
   transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
-
 .display-text {}
 .reading-text {
   font-size: 0.6em;
@@ -384,7 +383,6 @@ header {
   color: #a5d6ff;
   font-weight: bold;
 }
-
 .input-display {
     padding: 15px;
     background-color: rgba(22, 27, 34, 0.9);
@@ -398,8 +396,10 @@ header {
 }
 .hidden-input {
   position: absolute;
-  top: -9999px;
-  left: -9999px;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
 }
