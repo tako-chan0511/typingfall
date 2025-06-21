@@ -8,7 +8,7 @@ export const englishWordList: string[] = [
   "promise", "callback", "component", "module", "webpack", "vite",
   "nextjs", "nuxtjs", "database", "query", "algorithm", "network",
   "agile", "scrum", "sprint", "kanban", "debug", "refactor", "deploy", 
-  "build", "test", "lint", "ci", "cd", "singleton", "factory",
+  "build", "test", "lint", "ci/cd", "singleton", "factory",
   "array", "object", "string", "number", "boolean", "null", "undefined",
-  "integer", "float", "double", "char", "binary", "hex", "utf-8"
+  "integer", "float", "double", "char", "binary", "hex", "utf-8", "ui/ux"
 ];
