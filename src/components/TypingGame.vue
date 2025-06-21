@@ -1,6 +1,6 @@
 <template>
-  <div class="game-wrapper">
-    <div class="game-container" ref="gameContainerRef" @click="focusInput">
+  <div class="game-wrapper" @click="focusInput">
+    <div class="game-container" ref="gameContainerRef">
       <header>
         <div class="stats">SCORE: <span>{{ score }}</span></div>
         <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -282,6 +282,7 @@ const focusInput = () => {
   }
 };
 
+// ★★★ モバイル画面リサイズ処理を再実装 ★★★
 const handleViewportResize = () => {
     if (gameContainerRef.value && window.visualViewport) {
         gameContainerRef.value.style.height = `${window.visualViewport.height}px`;
@@ -289,19 +290,22 @@ const handleViewportResize = () => {
 };
 
 onMounted(() => {
+  // PCのキーボード入力を検知したら、隠し入力欄にフォーカスを当てる
   window.addEventListener('keydown', (e) => {
     if ((e.key.length === 1 || e.key === 'Backspace') && gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
       focusInput();
     }
   });
   
+  // モバイルの画面サイズ変更を監視
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', handleViewportResize);
-    handleViewportResize();
+    handleViewportResize(); // 初期サイズを設定
   }
 });
 
 onUnmounted(() => {
+  // イベントリスナーをクリーンアップ
   window.removeEventListener('keydown', focusInput);
   if (window.visualViewport) {
     window.visualViewport.removeEventListener('resize', handleViewportResize);
@@ -312,6 +316,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
 .game-wrapper {
   width: 100vw;
   height: 100vh;
@@ -324,7 +329,7 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100%; /* JSで動的に設定 */
+    height: 100%; /* ★JSで動的に設定される */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -333,7 +338,7 @@ onUnmounted(() => {
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
     overflow: hidden;
-    transition: height 0.1s ease-out;
+    transition: height 0.15s ease-out; /* 高さが変わるのを滑らかに */
 }
 header {
     display: flex;
