@@ -1,5 +1,5 @@
 <template>
-  <div class="game-wrapper">
+  <div class="game-wrapper" @click="focusInput">
     <div class="game-container" ref="gameContainerRef">
       <header>
         <div class="stats">SCORE: <span>{{ score }}</span></div>
@@ -218,7 +218,7 @@ const gameOver = () => {
 watch(rawInput, (newValue, oldValue) => {
     if (gameState.value !== 'playing') return;
 
-    if (newValue.length < oldValue.length) {
+    if (newValue.length < oldValue.length) { // Backspace
         if (activeWord.value) {
             activeWord.value.typed = newValue;
             if (activeWord.value.typed === "") {
@@ -228,12 +228,12 @@ watch(rawInput, (newValue, oldValue) => {
         return;
     }
 
-    const typedChar = newValue.slice(-1);
+    const typedChar = newValue.slice(oldValue.length);
     if (!typedChar.match(/[a-z-]/i)) {
         rawInput.value = oldValue;
         return;
     }
-
+    
     if (activeWord.value) {
         if (activeWord.value.target.startsWith(newValue)) {
             activeWord.value.typed = newValue;
@@ -241,7 +241,7 @@ watch(rawInput, (newValue, oldValue) => {
                 wordCompleted(activeWord.value);
             }
         } else {
-            rawInput.value = oldValue;
+            rawInput.value = oldValue; // Mistype
         }
     } else {
         const targetWord = words.value.find(w => w.target.startsWith(newValue));
@@ -253,10 +253,11 @@ watch(rawInput, (newValue, oldValue) => {
                 targetWord.typed = newValue;
             }
         } else {
-            rawInput.value = oldValue;
+            rawInput.value = oldValue; // Mistype
         }
     }
 });
+
 
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
@@ -277,7 +278,14 @@ const wordCompleted = (word: Word) => {
 };
 
 const focusInput = () => {
-  if(hiddenInputRef.value) hiddenInputRef.value.focus();
+  if(hiddenInputRef.value) {
+    hiddenInputRef.value.focus();
+  }
+};
+
+const handleInput = (e: Event) => {
+  // v-modelで双方向バインディングしているので、このイベントハンドラは
+  // watchで処理するロジックに一本化
 };
 
 const handleViewportResize = () => {
@@ -289,11 +297,14 @@ const handleViewportResize = () => {
 
 onMounted(() => {
   window.addEventListener('keydown', (e) => {
-    if ((e.key.length === 1 || e.key === 'Backspace') && gameState.value === 'playing') {
-      focusInput();
+    if (e.key.length === 1 || e.key === 'Backspace') {
+      if(gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          focusInput();
+      }
     }
   });
-
+  
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', handleViewportResize);
     handleViewportResize();
@@ -322,7 +333,7 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100%;
+    height: 100%; /* JSで動的に設定 */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -333,7 +344,6 @@ onUnmounted(() => {
     overflow: hidden;
     transition: height 0.1s ease-out;
 }
-
 header {
     display: flex;
     justify-content: space-between;
@@ -344,24 +354,20 @@ header {
     border-top-right-radius: 10px;
     flex-shrink: 0;
 }
-
 .stats {
     font-size: 1.4em;
     letter-spacing: 2px;
 }
-
 .stats span {
     color: #58a6ff;
     font-weight: bold;
 }
-
 .game-area {
     flex-grow: 1;
     position: relative;
     overflow: hidden;
     min-height: 0;
 }
-
 .word {
     position: absolute;
     font-family: 'Share Tech Mono', monospace;
@@ -373,19 +379,15 @@ header {
     align-items: center;
     padding: 4px 8px;
 }
-
 .word.active {
   background-color: rgba(88, 166, 255, 0.2);
   border-radius: 6px;
   transform: scale(1.1);
   transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
-
-.display-text {
-  /* 日本語の表示スタイル */
-}
+.display-text {}
 .reading-text {
-  font-size: 0.6em; /* ローマ字を少し小さく */
+  font-size: 0.6em;
   opacity: 0.8;
   margin-top: 4px;
   background-color: rgba(0,0,0,0.5);
@@ -394,10 +396,9 @@ header {
   letter-spacing: 1px;
 }
 .typed {
-  color: #a5d6ff; /* タイプ済みの文字色 */
+  color: #a5d6ff;
   font-weight: bold;
 }
-
 .input-display {
     padding: 15px;
     background-color: rgba(22, 27, 34, 0.9);
@@ -411,10 +412,8 @@ header {
 }
 .hidden-input {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 1px;
+  top: -9999px;
+  left: -9999px;
   opacity: 0;
   pointer-events: none;
 }
@@ -427,12 +426,10 @@ header {
     vertical-align: bottom;
     margin-left: 5px;
 }
-
 @keyframes blink {
     from, to { background-color: transparent; }
     50% { background-color: #58a6ff; }
 }
-
 .modal {
     position: absolute;
     top: 0;
