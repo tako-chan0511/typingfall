@@ -1,88 +1,88 @@
 <template>
-  <div class="game-container" ref="gameContainerRef" @click="focusInput">
-    <header>
-      <div class="stats">SCORE: <span>{{ score }}</span></div>
-      <div class="stats">LEVEL: <span>{{ level }}</span></div>
-      <div class="stats">LIVES: <span>{{ lives }}</span></div>
-    </header>
-    <div class="game-area" ref="gameAreaRef">
-      <div 
-        v-for="(word, index) in words" 
-        :key="index" 
-        class="word" 
-        :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
-      >
-        {{ word.text }}
-      </div>
-      
-      <div v-if="gameState !== 'playing'" class="modal">
-        <div class="modal-content">
-          <div v-if="gameState === 'start'">
-              <h1>TYPING FALL</h1>
-              <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
-              
-              <div class="settings-container">
-                <div class="setting-group">
-                  <label>モード選択</label>
-                  <div class="difficulty-selector">
-                    <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
-                    <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
-                    <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+  <div class="game-wrapper">
+    <div class="game-container" ref="gameContainerRef" @click="focusInput">
+      <header>
+        <div class="stats">SCORE: <span>{{ score }}</span></div>
+        <div class="stats">LEVEL: <span>{{ level }}</span></div>
+        <div class="stats">LIVES: <span>{{ lives }}</span></div>
+      </header>
+      <div class="game-area" ref="gameAreaRef">
+        <div 
+          v-for="(word, index) in words" 
+          :key="index" 
+          class="word" 
+          :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
+        >
+          {{ word.text }}
+        </div>
+        
+        <div v-if="gameState !== 'playing'" class="modal">
+          <div class="modal-content">
+            <div v-if="gameState === 'start'">
+                <h1>TYPING FALL</h1>
+                <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
+                
+                <div class="settings-container">
+                  <div class="setting-group">
+                    <label>モード選択</label>
+                    <div class="difficulty-selector">
+                      <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
+                      <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
+                      <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+                    </div>
+                  </div>
+                  <div class="setting-group">
+                    <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
+                    <input 
+                      type="range" 
+                      id="speed-slider" 
+                      min="0.1" 
+                      max="2.5" 
+                      step="0.01" 
+                      v-model.number="initialSpeed"
+                      class="slider"
+                    >
+                  </div>
+                  <div v-if="difficulty === 'Practice'" class="setting-group">
+                    <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
+                    <input 
+                      type="range" 
+                      id="word-count-slider" 
+                      min="1" 
+                      max="10" 
+                      step="1" 
+                      v-model.number="practiceWordCount"
+                      class="slider"
+                    >
                   </div>
                 </div>
-                <div class="setting-group">
-                  <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
-                  <input 
-                    type="range" 
-                    id="speed-slider" 
-                    min="0.1" 
-                    max="2.5" 
-                    step="0.01" 
-                    v-model.number="initialSpeed"
-                    class="slider"
-                  >
-                </div>
-                <div v-if="difficulty === 'Practice'" class="setting-group">
-                  <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
-                  <input 
-                    type="range" 
-                    id="word-count-slider" 
-                    min="1" 
-                    max="10" 
-                    step="1" 
-                    v-model.number="practiceWordCount"
-                    class="slider"
-                  >
-                </div>
-              </div>
-              
-              <button @click="startGame" class="start-button" ref="startButtonRef">START GAME</button>
-          </div>
-          <div v-if="gameState === 'gameover'">
-              <h1>GAME OVER</h1>
-              <h2>FINAL SCORE: {{ score }}</h2>
-              <button @click="startGame" class="start-button">RESTART</button>
+                
+                <button @click="startGame" class="start-button" ref="startButtonRef">START GAME</button>
+            </div>
+            <div v-if="gameState === 'gameover'">
+                <h1>GAME OVER</h1>
+                <h2>FINAL SCORE: {{ score }}</h2>
+                <button @click="startGame" class="start-button">RESTART</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div class="input-display" ref="inputDisplayRef">
-      <span>{{ currentInput }}</span>
-      <span class="input-cursor"></span>
-    </div>
+      <div class="input-display" ref="inputDisplayRef">
+        <span>{{ currentInput }}</span>
+        <span class="input-cursor"></span>
+      </div>
 
-    <input
-      ref="hiddenInputRef"
-      type="text"
-      class="hidden-input"
-      @input="handleMobileInput"
-      @focus="onInputFocus"
-      @blur="onInputBlur"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-    >
+      <input
+        ref="hiddenInputRef"
+        type="text"
+        class="hidden-input"
+        @input="handleMobileInput"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+    </div>
   </div>
 </template>
 
@@ -107,8 +107,8 @@ let currentBaseSpeed = 1.0;
 const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
 const hiddenInputRef = ref<HTMLInputElement | null>(null);
-const startButtonRef = ref<HTMLButtonElement | null>(null);
-const inputDisplayRef = ref<HTMLElement | null>(null);
+const startButtonRef = ref<HTMLButtonElement | null>(null); // スタートボタンの参照
+const inputDisplayRef = ref<HTMLElement | null>(null); // 入力表示エリアの参照
 let animationFrameId: number;
 
 const gameSettings = {
@@ -200,7 +200,9 @@ const gameOver = () => {
 
 const handleKeyDown = (e: KeyboardEvent) => {
   if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
+  
   e.preventDefault();
+
   if (e.key === 'Backspace') {
     currentInput.value = currentInput.value.slice(0, -1);
   } else if (e.key.length === 1 && e.key.match(/[a-z0-9-]/i)) {
@@ -220,10 +222,12 @@ const checkInput = () => {
   if (index !== -1) {
     score.value += words.value[index].text.length * 10;
     words.value.splice(index, 1);
+    
     currentInput.value = '';
     if(hiddenInputRef.value) {
       hiddenInputRef.value.value = '';
     }
+
     if (score.value > level.value * 500) {
       level.value++;
       if (difficulty.value !== 'Practice') {
@@ -240,40 +244,55 @@ const focusInput = () => {
 }
 
 // ★★★ モバイル画面最適化のためのロジック ★★★
-const onInputFocus = () => {
-  // キーボードが表示された（入力欄にフォーカスが当たった）際に、
-  // ゲームコンテナを少し上にスクロールさせて入力欄が見えるようにする
-  setTimeout(() => {
-    if (inputDisplayRef.value) {
-      inputDisplayRef.value.scrollIntoView({ behavior: 'smooth', block: 'end' });
+let originalHeight = 0;
+const handleViewportResize = () => {
+    if (window.visualViewport && gameContainerRef.value) {
+        const newHeight = window.visualViewport.height;
+        // キーボードが表示されたと判断（元の高さより著しく小さい場合）
+        if (newHeight < originalHeight * 0.9) { 
+            const scale = newHeight / originalHeight;
+            gameContainerRef.value.style.transform = `scale(${scale})`;
+            gameContainerRef.value.style.transformOrigin = 'top center';
+        } else {
+            // キーボードが非表示になった
+            gameContainerRef.value.style.transform = 'scale(1)';
+        }
     }
-  }, 300); // iOSのキーボード表示アニメーションを待つ
-};
-
-const onInputBlur = () => {
-  // フォーカスが外れたら、元の位置に戻す
-  window.scrollTo(0, 0);
 };
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  if (window.visualViewport && gameContainerRef.value) {
+      originalHeight = gameContainerRef.value.offsetHeight;
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', handleViewportResize);
+  }
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
 
 <style scoped>
+/* ★★★ コンテナを包むラッパーを追加 ★★★ */
+.game-wrapper {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 .game-container {
     width: 100%;
     max-width: 800px;
-    /* ★★★ iOSのSafariでも高さを正しく取得するために変更 ★★★ */
-    height: 100vh; 
-    height: 100dvh; /* Dynamic viewport heightを優先 */
+    height: 95vh;
+    max-height: 900px;
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -281,7 +300,9 @@ onUnmounted(() => {
     background-color: #010409;
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
-    overflow: hidden; /* ★ コンテナ自体はスクロールさせない */
+    overflow: hidden;
+    /* ★ スケーリングのためのスタイルを追加 ★ */
+    transition: transform 0.2s ease-out;
 }
 
 header {
@@ -331,7 +352,6 @@ header {
     min-height: 40px;
     flex-shrink: 0;
 }
-
 .hidden-input {
   position: absolute;
   top: -9999px;
@@ -367,7 +387,6 @@ header {
     z-index: 10;
 }
 
-/* ★★★ モーダルのコンテンツをスクロール可能にするためのラッパー ★★★ */
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -375,14 +394,14 @@ header {
     align-items: center;
     text-align: center;
     width: 100%;
-    max-height: 90%; /* ★高さを制限 */
-    overflow-y: auto; /* ★ コンテンツがはみ出たらスクロール */
+    max-height: 90%;
+    overflow-y: auto;
     padding: 20px;
     box-sizing: border-box;
 }
 
 .modal h1 {
-    font-size: 3em; /* 少し小さくして見切れにくくする */
+    font-size: 4em;
     color: #58a6ff;
     text-shadow: 0 0 15px #58a6ff;
     margin-bottom: 20px;
