@@ -1,7 +1,6 @@
-<!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-wrapper">
-    <div class="game-container" ref="gameContainerRef" @click="focusInput">
+  <div class="game-wrapper" @click="focusInput">
+    <div class="game-container" ref="gameContainerRef">
       <header>
         <div class="stats">SCORE: <span>{{ score }}</span></div>
         <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -121,9 +120,9 @@ const hiddenInputRef = ref<HTMLInputElement | null>(null);
 let animationFrameId: number;
 
 const gameSettings = {
-  Practice: { spawnRate: 150, fontSize: 32, fontMultiplier: 20 },
-  Normal: { spawnRate: 120, fontSize: 32, fontMultiplier: 20 },
-  Hard: { spawnRate: 90, fontSize: 36, fontMultiplier: 22 }
+  Practice: { spawnRate: 150, fontSize: 32 },
+  Normal: { spawnRate: 120, fontSize: 32 },
+  Hard: { spawnRate: 90, fontSize: 36 }
 };
 
 const vibrantColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'];
@@ -160,24 +159,32 @@ const spawnWord = () => {
   if (!gameAreaRef.value) return;
 
   let display: string, target: string;
+  
+  const { fontSize } = gameSettings[difficulty.value];
+  let fontMultiplier = 0;
+
   if (language.value === 'Japanese') {
     const wordData = japaneseWordList[Math.floor(Math.random() * japaneseWordList.length)];
     display = wordData.display;
     target = wordData.reading;
+    // ★★★ 日本語の文字幅をフォントサイズと等価として計算 ★★★
+    fontMultiplier = fontSize; 
   } else {
     const wordData = englishWordList[Math.floor(Math.random() * englishWordList.length)];
     display = wordData;
     target = wordData;
+    // ★★★ 英語は従来の比率で計算 ★★★
+    fontMultiplier = fontSize * 0.6; 
   }
-
-  const { fontMultiplier, fontSize } = gameSettings[difficulty.value];
+  
   const textWidth = display.length * fontMultiplier;
   const newWord: Word = {
     id: wordIdCounter++,
     display,
     target,
     typed: '',
-    x: Math.random() * (gameAreaRef.value.clientWidth - textWidth - 40) + 20,
+    // ★★★ はみ出し防止の計算をより安全に ★★★
+    x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
     y: -fontSize,
     speed: currentBaseSpeed + Math.random() * 0.5,
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
@@ -217,35 +224,46 @@ const gameOver = () => {
 };
 
 watch(rawInput, (newValue, oldValue) => {
-  if (gameState.value !== 'playing') return;
+    if (gameState.value !== 'playing') return;
 
-  // Backspace is handled by handleHiddenInputKeydown
-  if (newValue.length < oldValue.length) {
-    return;
-  }
+    if (newValue.length < oldValue.length) { // Backspace
+        if (activeWord.value) {
+            activeWord.value.typed = newValue;
+            if (activeWord.value.typed === "") {
+                activeWord.value = null;
+            }
+        }
+        return;
+    }
 
-  if (activeWord.value) {
-    if (activeWord.value.target.startsWith(newValue)) {
-      activeWord.value.typed = newValue;
-      if (activeWord.value.typed === activeWord.value.target) {
-        wordCompleted(activeWord.value);
-      }
-    } else {
-      rawInput.value = oldValue; // Mistype
+    const typedChar = newValue.slice(oldValue.length);
+    if (!typedChar.match(/[a-z-]/i)) {
+        rawInput.value = oldValue;
+        return;
     }
-  } else {
-    const targetWord = words.value.find(w => w.target.startsWith(newValue));
-    if (targetWord) {
-      if (targetWord.target === newValue) {
-        wordCompleted(targetWord);
-      } else if (language.value === 'Japanese') {
-        activeWord.value = targetWord;
-        targetWord.typed = newValue;
-      }
+    
+    if (activeWord.value) {
+        if (activeWord.value.target.startsWith(newValue)) {
+            activeWord.value.typed = newValue;
+            if (activeWord.value.typed === activeWord.value.target) {
+                wordCompleted(activeWord.value);
+            }
+        } else {
+            rawInput.value = oldValue; // Mistype
+        }
     } else {
-      rawInput.value = oldValue; // Mistype
+        const targetWord = words.value.find(w => w.target.startsWith(newValue));
+        if (targetWord) {
+            if (targetWord.target === newValue) {
+                wordCompleted(targetWord);
+            } else if (language.value === 'Japanese') {
+                activeWord.value = targetWord;
+                targetWord.typed = newValue;
+            }
+        } else {
+            rawInput.value = oldValue; // Mistype
+        }
     }
-  }
 });
 
 
@@ -296,7 +314,7 @@ const handleViewportResize = () => {
 
 onMounted(() => {
   window.addEventListener('keydown', (e) => {
-    if (e.key.length === 1 && gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
+    if ((e.key.length === 1 || e.key === 'Backspace') && gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
       focusInput();
     }
   });
@@ -308,7 +326,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  // onMountedで設定したkeydownリスナーは、ここでは削除しない
+  window.removeEventListener('keydown', focusInput);
   if (window.visualViewport) {
     window.visualViewport.removeEventListener('resize', handleViewportResize);
   }
@@ -318,19 +336,20 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ★★★ コンテナを包むラッパーを追加 ★★★ */
+/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
 .game-wrapper {
-  width: 100%;
+  width: 100vw;
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+  background-color: #0d1117;
 }
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 95vh;
-    max-height: 900px;
+    height: 100%; /* JSで動的に設定される */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -339,10 +358,8 @@ onUnmounted(() => {
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
     overflow: hidden;
-    /* ★ スケーリングのためのスタイルを追加 ★ */
-    transition: transform 0.2s ease-out;
+    transition: height 0.15s ease-out;
 }
-
 header {
     display: flex;
     justify-content: space-between;
@@ -353,32 +370,51 @@ header {
     border-top-right-radius: 10px;
     flex-shrink: 0;
 }
-
 .stats {
     font-size: 1.4em;
     letter-spacing: 2px;
 }
-
 .stats span {
     color: #58a6ff;
     font-weight: bold;
 }
-
 .game-area {
     flex-grow: 1;
     position: relative;
     overflow: hidden;
     min-height: 0;
 }
-
 .word {
     position: absolute;
     font-family: 'Share Tech Mono', monospace;
     font-weight: bold;
     text-shadow: 0 0 10px currentColor, 0 0 5px rgba(255,255,255,0.7);
     white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 8px;
 }
-
+.word.active {
+  background-color: rgba(88, 166, 255, 0.2);
+  border-radius: 6px;
+  transform: scale(1.1);
+  transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
+}
+.display-text {}
+.reading-text {
+  font-size: 0.6em;
+  opacity: 0.8;
+  margin-top: 4px;
+  background-color: rgba(0,0,0,0.5);
+  padding: 2px 4px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+.typed {
+  color: #a5d6ff;
+  font-weight: bold;
+}
 .input-display {
     padding: 15px;
     background-color: rgba(22, 27, 34, 0.9);
@@ -392,8 +428,10 @@ header {
 }
 .hidden-input {
   position: absolute;
-  top: -9999px;
-  left: -9999px;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
 }
@@ -406,12 +444,10 @@ header {
     vertical-align: bottom;
     margin-left: 5px;
 }
-
 @keyframes blink {
     from, to { background-color: transparent; }
     50% { background-color: #58a6ff; }
 }
-
 .modal {
     position: absolute;
     top: 0;
@@ -424,7 +460,6 @@ header {
     align-items: center;
     z-index: 10;
 }
-
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -437,27 +472,23 @@ header {
     padding: 20px;
     box-sizing: border-box;
 }
-
 .modal h1 {
     font-size: 4em;
     color: #58a6ff;
     text-shadow: 0 0 15px #58a6ff;
     margin-bottom: 20px;
 }
-
 .modal h2 {
     font-size: 2em;
     margin: 20px 0;
     color: #c9d1d9;
 }
-
 .modal p {
     font-size: 1.2em;
     color: #8b949e;
     max-width: 90%;
     line-height: 1.6;
 }
-
 .start-button {
     font-family: 'Share Tech Mono', monospace;
     font-size: 1.5em;
@@ -472,13 +503,11 @@ header {
     border-radius: 6px;
     flex-shrink: 0;
 }
-
 .start-button:hover {
     background-color: #58a6ff;
     color: #010409;
     box-shadow: 0 0 20px #58a6ff;
 }
-
 .settings-container {
     display: flex;
     flex-direction: column;
@@ -487,7 +516,6 @@ header {
     align-items: center;
     width: 100%;
 }
-
 .setting-group {
     display: flex;
     flex-direction: column;
@@ -495,19 +523,16 @@ header {
     gap: 10px;
     width: 100%;
 }
-
 .setting-group label {
     font-size: 1.2em;
     color: #8b949e;
 }
-
 .difficulty-selector {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
 }
-
 .difficulty-selector button {
     font-family: 'Share Tech Mono', monospace;
     font-size: 1.1em;
@@ -520,13 +545,11 @@ header {
     border-radius: 6px;
     transition: all 0.3s ease;
 }
-
 .difficulty-selector button.active {
     border-color: #58a6ff;
     color: #58a6ff;
     box-shadow: 0 0 10px #58a6ff;
 }
-
 .slider {
     -webkit-appearance: none;
     width: 90%;
@@ -538,11 +561,9 @@ header {
     opacity: 0.7;
     transition: opacity .2s;
 }
-
 .slider:hover {
     opacity: 1;
 }
-
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -553,7 +574,6 @@ header {
     border-radius: 50%;
     border: 2px solid #161b22;
 }
-
 .slider::-moz-range-thumb {
     width: 24px;
     height: 24px;
