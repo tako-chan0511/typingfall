@@ -16,51 +16,53 @@
       </div>
       
       <div v-if="gameState !== 'playing'" class="modal">
-        <div v-if="gameState === 'start'">
-            <h1>TYPING FALL</h1>
-            <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
-            
-            <div class="settings-container">
-              <div class="setting-group">
-                <label>モード選択</label>
-                <div class="difficulty-selector">
-                  <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
-                  <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
-                  <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+        <div class="modal-content">
+          <div v-if="gameState === 'start'">
+              <h1>TYPING FALL</h1>
+              <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
+              
+              <div class="settings-container">
+                <div class="setting-group">
+                  <label>モード選択</label>
+                  <div class="difficulty-selector">
+                    <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
+                    <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
+                    <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+                  </div>
+                </div>
+                <div class="setting-group">
+                  <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
+                  <input 
+                    type="range" 
+                    id="speed-slider" 
+                    min="0.1" 
+                    max="2.5" 
+                    step="0.01" 
+                    v-model.number="initialSpeed"
+                    class="slider"
+                  >
+                </div>
+                <div v-if="difficulty === 'Practice'" class="setting-group">
+                  <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
+                  <input 
+                    type="range" 
+                    id="word-count-slider" 
+                    min="1" 
+                    max="10" 
+                    step="1" 
+                    v-model.number="practiceWordCount"
+                    class="slider"
+                  >
                 </div>
               </div>
-              <div class="setting-group">
-                <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
-                <input 
-                  type="range" 
-                  id="speed-slider" 
-                  min="0.1" 
-                  max="2.5" 
-                  step="0.01" 
-                  v-model.number="initialSpeed"
-                  class="slider"
-                >
-              </div>
-              <div v-if="difficulty === 'Practice'" class="setting-group">
-                <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
-                <input 
-                  type="range" 
-                  id="word-count-slider" 
-                  min="1" 
-                  max="10" 
-                  step="1" 
-                  v-model.number="practiceWordCount"
-                  class="slider"
-                >
-              </div>
-            </div>
-            
-            <button @click="startGame" class="start-button">START GAME</button>
-        </div>
-        <div v-if="gameState === 'gameover'">
-            <h1>GAME OVER</h1>
-            <h2>FINAL SCORE: {{ score }}</h2>
-            <button @click="startGame" class="start-button">RESTART</button>
+              
+              <button @click="startGame" class="start-button">START GAME</button>
+          </div>
+          <div v-if="gameState === 'gameover'">
+              <h1>GAME OVER</h1>
+              <h2>FINAL SCORE: {{ score }}</h2>
+              <button @click="startGame" class="start-button">RESTART</button>
+          </div>
         </div>
       </div>
     </div>
@@ -243,7 +245,6 @@ const handleViewportResize = () => {
   if (window.visualViewport && gameContainerRef.value) {
     const newHeight = window.visualViewport.height;
     gameContainerRef.value.style.height = `${newHeight}px`;
-    // キーボードが表示されたときに、一番下にスクロールして入力欄が見えるようにする
     gameContainerRef.value.scrollIntoView(false);
   }
 };
@@ -271,8 +272,8 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100vh; /* ★★★ まずは画面いっぱいに設定 */
-    max-height: 100vh; /* iOSでのvh問題を考慮 */
+    height: 100vh;
+    max-height: 100vh; 
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -291,7 +292,7 @@ header {
     border-bottom: 2px solid #30363d;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
-    flex-shrink: 0; /* ★ ヘッダーが縮まないようにする */
+    flex-shrink: 0;
 }
 
 .stats {
@@ -305,10 +306,10 @@ header {
 }
 
 .game-area {
-    flex-grow: 1; /* ★ 利用可能な残りのスペースをすべて埋める */
+    flex-grow: 1;
     position: relative;
     overflow: hidden;
-    min-height: 0; /* ★ Flexboxの縮小バグを防ぐための重要なおまじない */
+    min-height: 0;
 }
 
 .word {
@@ -328,10 +329,9 @@ header {
     color: #58a6ff;
     letter-spacing: 4px;
     min-height: 40px;
-    flex-shrink: 0; /* ★ 入力欄が縮まないようにする */
+    flex-shrink: 0;
 }
 
-/* (以下、他のスタイルは変更なし) */
 .hidden-input {
   position: absolute;
   top: -9999px;
@@ -364,10 +364,23 @@ header {
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-direction: column;
-    text-align: center;
     z-index: 10;
 }
+
+/* ★★★ モーダルのコンテンツをスクロール可能にするためのラッパー ★★★ */
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    max-height: 100%;
+    overflow-y: auto; /* ★ コンテンツがはみ出たらスクロール */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
 
 .modal h1 {
     font-size: 4em;
@@ -401,6 +414,7 @@ header {
     transition: all 0.3s ease;
     letter-spacing: 2px;
     border-radius: 6px;
+    flex-shrink: 0; /* ボタンが縮まないように */
 }
 
 .start-button:hover {
