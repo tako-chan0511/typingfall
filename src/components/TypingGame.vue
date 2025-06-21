@@ -1,86 +1,98 @@
 <!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-wrapper">
-    <div class="game-container" ref="gameContainerRef" @click="focusInput">
-      <header>
-        <div class="stats">SCORE: <span>{{ score }}</span></div>
-        <div class="stats">LEVEL: <span>{{ level }}</span></div>
-        <div class="stats">LIVES: <span>{{ lives }}</span></div>
-      </header>
-      <div class="game-area" ref="gameAreaRef">
-        <div 
-          v-for="word in words" 
-          :key="word.id" 
-          class="word" 
-          :class="{ active: activeWord?.id === word.id }"
-          :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
-        >
-          <span class="display-text">{{ word.display }}</span>
-          <span v-if="language === 'Japanese' && word.typed.length > 0" class="reading-text">
-            <span class="typed">{{ word.typed }}</span>{{ word.target.substring(word.typed.length) }}
+  <div class="game-container">
+    <header>
+      <div class="stats">SCORE: <span>{{ score }}</span></div>
+      <div class="stats">LEVEL: <span>{{ level }}</span></div>
+      <div class="stats" v-if="difficulty !== 'FingerDrill'">LIVES: <span>{{ lives }}</span></div>
+    </header>
+    <div class="game-area" ref="gameAreaRef">
+      <div 
+        v-for="word in words" 
+        :key="word.id" 
+        class="word" 
+        :class="{ active: activeWord?.id === word.id }"
+        :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
+      >
+        <div class="display-text-wrapper">
+          <span
+            v-for="(char, index) in word.display.split('')"
+            :key="index"
+            :class="{ typed: word.typed.length > index }"
+            class="char-display"
+          >
+            {{ char }}
           </span>
         </div>
-        
-        <div v-if="gameState !== 'playing'" class="modal">
-          <div class="modal-content">
-            <div v-if="gameState === 'start'">
-                <h1>TYPING FALL</h1>
-                <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
-                
-                <div class="settings-container">
-                  <div class="setting-group">
-                    <label>言語</label>
-                    <div class="difficulty-selector">
-                      <button @click="setLanguage('English')" :class="{ active: language === 'English' }">ENGLISH</button>
-                      <button @click="setLanguage('Japanese')" :class="{ active: language === 'Japanese' }">日本語</button>
-                    </div>
-                  </div>
-                  <div class="setting-group">
-                    <label>モード選択</label>
-                    <div class="difficulty-selector">
-                      <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
-                      <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
-                      <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
-                    </div>
-                  </div>
-                  <div class="setting-group">
-                    <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
-                    <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
-                  </div>
-                  <div v-if="difficulty === 'Practice'" class="setting-group">
-                    <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
-                    <input type="range" id="word-count-slider" min="1" max="10" step="1" v-model.number="practiceWordCount" class="slider">
-                  </div>
-                </div>
-                
-                <button @click="startGame" class="start-button">START GAME</button>
-            </div>
-            <div v-if="gameState === 'gameover'">
-                <h1>GAME OVER</h1>
-                <h2>FINAL SCORE: {{ score }}</h2>
-                <button @click="startGame" class="start-button">RESTART</button>
-            </div>
-          </div>
+        <div v-if="difficulty === 'FingerDrill'" class="fingering-guide">
+          <span v-for="(f, index) in word.fingering" :key="index" :class="['finger-' + f.finger.charAt(0).toLowerCase(), { typed: word.typed.length > index }]">
+            {{ f.finger }}
+          </span>
         </div>
       </div>
       
-      <div class="input-display">
-        <span>{{ displayInput }}</span>
-        <span class="input-cursor"></span>
+      <div v-if="gameState !== 'playing'" class="modal">
+        <div class="modal-content">
+          <div v-if="gameState === 'start'">
+              <h1>TYPING FALL</h1>
+              <p>指のホームポジションを意識して<br>正確なタイピングをマスターしよう！</p>
+              
+              <div class="settings-container">
+                <div class="setting-group">
+                  <label>モード選択</label>
+                  <div class="difficulty-selector">
+                    <button @click="setDifficulty('FingerDrill')" :class="{ active: difficulty === 'FingerDrill' }">指練習</button>
+                    <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
+                    <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
+                    <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+                  </div>
+                </div>
+                <div class="setting-group" v-if="difficulty !== 'FingerDrill'">
+                  <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
+                  <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
+                </div>
+                <div v-if="difficulty === 'Practice'" class="setting-group">
+                  <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
+                  <input type="range" id="word-count-slider" min="1" max="10" step="1" v-model.number="practiceWordCount" class="slider">
+                </div>
+              </div>
+              
+              <button @click="startGame" class="start-button">START GAME</button>
+          </div>
+          <div v-if="gameState === 'gameover'">
+              <h1>GAME OVER</h1>
+              <h2>FINAL SCORE: {{ score }}</h2>
+              <button @click="startGame" class="start-button">RESTART</button>
+          </div>
+        </div>
       </div>
 
-      <input
-        ref="hiddenInputRef"
-        type="text"
-        class="hidden-input"
-        v-model="rawInput"
-        @keydown="handleHiddenInputKeydown"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-      >
+        <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-navigation">
+        <button @click="previousWord" class="nav-button prev-button">
+          (Shift+Space) 前の単語へ
+        </button>
+        <button @click="nextWord" class="nav-button next-button">
+          次の単語へ (Space)
+        </button>
+      </div>
+
     </div>
+    
+    <div class="input-display">
+      <span>{{ currentInput }}</span>
+      <span class="input-cursor"></span>
+    </div>
+
+    <input
+      ref="hiddenInputRef"
+      type="text"
+      class="hidden-input"
+      @input="handleInput"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    >
   </div>
 </template>
 
@@ -88,39 +100,33 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { englishWordList } from '../words_en';
 import { japaneseWordList } from '../words_ja';
-import type { Word, GameState, Difficulty, Language } from '../types';
+import { practiceWordList } from '../practiceWords';
+import { fingerMap } from '../fingering';
+import type { Word, GameState, Difficulty, Language, Fingering } from '../types';
 
-// --- Game State & Settings ---
 const score = ref(0);
 const level = ref(1);
 const lives = ref(5);
 const words = ref<Word[]>([]);
 const gameState = ref<GameState>('start');
-const difficulty = ref<Difficulty>('Practice');
-const language = ref<Language>('English');
+const difficulty = ref<Difficulty>('FingerDrill');
 const initialSpeed = ref(0.8);
 const practiceWordCount = ref(5);
 let currentBaseSpeed = 1.0;
 let wordIdCounter = 0;
+let currentPracticeWordIndex = 0;
 
-const activeWord = ref<Word | null>(null);
-const rawInput = ref(''); 
+const currentInput = ref(''); 
 
-// --- Computed Properties ---
-const displayInput = computed(() => {
-  if (language.value === 'Japanese' && activeWord.value) {
-    return activeWord.value.typed;
-  }
-  return rawInput.value;
-});
+const activeWord = computed(() => words.value.find(w => w.typed.length > 0 && w.typed !== w.target));
 
 // --- Template Refs ---
-const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
 const hiddenInputRef = ref<HTMLInputElement | null>(null);
 let animationFrameId: number;
 
 const gameSettings = {
+  FingerDrill: { spawnRate: 9999, fontSize: 48 },
   Practice: { spawnRate: 150, fontSize: 32 },
   Normal: { spawnRate: 120, fontSize: 32 },
   Hard: { spawnRate: 90, fontSize: 36 }
@@ -128,7 +134,6 @@ const gameSettings = {
 
 const vibrantColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'];
 
-// --- Game Logic ---
 const initGame = () => {
   score.value = 0;
   level.value = 1;
@@ -137,13 +142,13 @@ const initGame = () => {
   gameState.value = 'playing';
   currentBaseSpeed = initialSpeed.value;
   wordIdCounter = 0;
-  activeWord.value = null;
-  rawInput.value = '';
+  currentInput.value = '';
 
-  if (difficulty.value === 'Practice') {
-    for (let i = 0; i < practiceWordCount.value; i++) {
-      spawnWord();
-    }
+  if (difficulty.value === 'FingerDrill') {
+    currentPracticeWordIndex = 0;
+    spawnWord();
+  } else if (difficulty.value === 'Practice') {
+    for (let i = 0; i < practiceWordCount.value; i++) spawnWord();
   }
 };
 
@@ -154,38 +159,31 @@ const startGame = () => {
 };
 
 const setDifficulty = (level: Difficulty) => { difficulty.value = level; };
-const setLanguage = (lang: Language) => { language.value = lang; };
+
+const getFinger = (char: string): string => fingerMap[char.toLowerCase()] || '??';
 
 const spawnWord = () => {
   if (!gameAreaRef.value) return;
 
-  let display: string, target: string;
-  
-  const { fontSize } = gameSettings[difficulty.value];
-  let fontMultiplier = 0;
-
-  if (language.value === 'Japanese') {
-    const wordData = japaneseWordList[Math.floor(Math.random() * japaneseWordList.length)];
-    display = wordData.display;
-    target = wordData.reading;
-    fontMultiplier = fontSize; 
+  let text: string;
+  if (difficulty.value === 'FingerDrill') {
+    text = practiceWordList[currentPracticeWordIndex];
   } else {
-    const wordData = englishWordList[Math.floor(Math.random() * englishWordList.length)];
-    display = wordData;
-    target = wordData;
-    fontMultiplier = fontSize * 0.6; 
+    text = englishWordList[Math.floor(Math.random() * englishWordList.length)];
   }
-  
-  const textWidth = display.length * fontMultiplier;
+
+  const { fontSize } = gameSettings[difficulty.value];
+  const textWidth = text.length * fontSize * 0.6;
   const newWord: Word = {
     id: wordIdCounter++,
-    display,
-    target,
+    display: text,
+    target: text,
     typed: '',
     x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
-    y: -fontSize,
-    speed: currentBaseSpeed + Math.random() * 0.5,
+    y: difficulty.value === 'FingerDrill' ? gameAreaRef.value.clientHeight / 2 - 100 : -fontSize,
+    speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * 0.5,
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
+    fingering: text.split('').map(char => ({ char, finger: getFinger(char) }))
   };
   words.value.push(newWord);
 };
@@ -194,11 +192,13 @@ let frameCount = 0;
 const gameLoop = () => {
   if (gameState.value !== 'playing') return;
 
-  if (difficulty.value === 'Practice') {
-    if (words.value.length < practiceWordCount.value) spawnWord();
-  } else {
-    frameCount++;
-    if (frameCount % gameSettings[difficulty.value].spawnRate === 0) spawnWord();
+  if (difficulty.value !== 'FingerDrill') {
+    if (difficulty.value === 'Practice') {
+      if (words.value.length < practiceWordCount.value) spawnWord();
+    } else {
+      frameCount++;
+      if (frameCount % gameSettings[difficulty.value].spawnRate === 0) spawnWord();
+    }
   }
 
   for (let i = words.value.length - 1; i >= 0; i--) {
@@ -207,9 +207,10 @@ const gameLoop = () => {
 
     if (gameAreaRef.value && word.y > gameAreaRef.value.clientHeight) {
       words.value.splice(i, 1);
-      if(activeWord.value?.id === word.id) activeWord.value = null;
-      lives.value--;
-      if (lives.value <= 0) gameOver();
+      if (difficulty.value !== 'FingerDrill') {
+        lives.value--;
+        if (lives.value <= 0) gameOver();
+      }
     }
   }
 
@@ -221,117 +222,106 @@ const gameOver = () => {
   cancelAnimationFrame(animationFrameId);
 };
 
-watch(rawInput, (newValue, oldValue) => {
-    if (gameState.value !== 'playing') return;
-
-    if (newValue.length < oldValue.length) { // Backspace
-        if (activeWord.value) {
-            activeWord.value.typed = newValue;
-            if (activeWord.value.typed === "") {
-                activeWord.value = null;
-            }
-        }
-        return;
-    }
-
-    const typedChar = newValue.slice(oldValue.length);
-    if (!typedChar.match(/[a-z0-9\/-]/i)) { // ★★★ スラッシュを追加 ★★★
-        rawInput.value = oldValue;
-        return;
-    }
-    
-    if (activeWord.value) {
-        if (activeWord.value.target.startsWith(newValue)) {
-            activeWord.value.typed = newValue;
-            if (activeWord.value.typed === activeWord.value.target) {
-                wordCompleted(activeWord.value);
-            }
-        } else {
-            rawInput.value = oldValue; // Mistype
-        }
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
+  
+  if (e.key === ' ' && difficulty.value === 'FingerDrill') {
+    e.preventDefault();
+    if(e.shiftKey){
+      previousWord();
     } else {
-        const targetWord = words.value.find(w => w.target.startsWith(newValue));
-        if (targetWord) {
-            if (targetWord.target === newValue) {
-                wordCompleted(targetWord);
-            } else if (language.value === 'Japanese') {
-                activeWord.value = targetWord;
-                targetWord.typed = newValue;
-            }
-        } else {
-            rawInput.value = oldValue; // Mistype
-        }
+      nextWord();
     }
-});
+    return;
+  }
+  
+  e.preventDefault();
 
+  if (e.key === 'Backspace') {
+    currentInput.value = currentInput.value.slice(0, -1);
+    // ★★★ 修正点1: Backspace後に入力チェックを呼び出す ★★★
+    // これにより、文字を消した際に画面表示が正しく更新されます。
+    checkInput();
+    return;
+  }
+  
+  // ★★★ 修正点2: この条件式が'/'や'8'などを弾いていました ★★★
+  // e.key.length === 1 のチェックにすることで、単一の文字キー（記号や数字を含む）の入力を受け付けるようにします。
+  if (e.key.length === 1) {
+    // toLowerCase() は、練習問題が小文字で統一されていることを前提として残します。
+    // これにより、CapsLockがオンの場合やShiftキーを押しながらでもアルファベットが入力できます。
+    currentInput.value += e.key.toLowerCase();
+    checkInput();
+  }
+};
+
+const checkInput = () => {
+  const targetWord = words.value[0]; // In drill mode, there is only one word
+  if (!targetWord) return;
+
+  if (targetWord.target.startsWith(currentInput.value)) {
+    targetWord.typed = currentInput.value;
+    if (targetWord.target === currentInput.value) {
+      wordCompleted(targetWord);
+    }
+  } else {
+    currentInput.value = currentInput.value.slice(0, -1); // Mistype
+  }
+};
 
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
-  words.value = words.value.filter(w => w.id !== word.id);
-  activeWord.value = null;
-  rawInput.value = '';
   
-  if (hiddenInputRef.value) {
-      hiddenInputRef.value.value = '';
+  if (difficulty.value === 'FingerDrill') {
+    words.value[0].typed = ''; // Reset typed
+  } else {
+    words.value = words.value.filter(w => w.id !== word.id);
   }
   
-  if (score.value > level.value * 500) {
+  currentInput.value = '';
+  
+  if (score.value > level.value * 500 && difficulty.value !== 'Practice' && difficulty.value !== 'FingerDrill') {
     level.value++;
-    if (difficulty.value !== 'Practice') {
-       currentBaseSpeed += 0.2;
-    }
+    currentBaseSpeed += 0.2;
   }
 };
+
+const nextWord = () => {
+  if (difficulty.value !== 'FingerDrill') return;
+  words.value = [];
+  currentInput.value = '';
+  currentPracticeWordIndex = (currentPracticeWordIndex + 1) % practiceWordList.length;
+  spawnWord();
+  focusInput();
+}
+
+const previousWord = () => {
+  if (difficulty.value !== 'FingerDrill') return;
+  words.value = [];
+  currentInput.value = '';
+  currentPracticeWordIndex--;
+  if (currentPracticeWordIndex < 0) {
+    currentPracticeWordIndex = practiceWordList.length - 1;
+  }
+  spawnWord();
+  focusInput();
+}
 
 const focusInput = () => {
-  if(hiddenInputRef.value) {
-    hiddenInputRef.value.focus({ preventScroll: true });
-  }
-};
-
-const handleHiddenInputKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Backspace') {
-    e.preventDefault();
-    if (activeWord.value) {
-      activeWord.value.typed = activeWord.value.typed.slice(0, -1);
-      rawInput.value = activeWord.value.typed;
-      if (activeWord.value.typed.length === 0) {
-          activeWord.value = null;
-      }
-    } else {
-      rawInput.value = rawInput.value.slice(0, -1);
-    }
-  }
-};
-
-const handleViewportResize = () => {
-    if (gameContainerRef.value && window.visualViewport) {
-        gameContainerRef.value.style.height = `${window.visualViewport.height}px`;
-    }
+  if(hiddenInputRef.value) hiddenInputRef.value.focus({ preventScroll: true });
 };
 
 onMounted(() => {
-  window.addEventListener('keydown', (e) => {
-    if ((e.key.length === 1 || e.key === 'Backspace') && gameState.value === 'playing' && !e.metaKey && !e.ctrlKey) {
-      focusInput();
-    }
-  });
-  
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', handleViewportResize);
-    handleViewportResize();
-  }
+  window.addEventListener('keydown', handleKeyDown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', focusInput);
-  if (window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', handleViewportResize);
-  }
+  window.removeEventListener('keydown', handleKeyDown);
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
+
 
 <style scoped>
 /* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
@@ -578,6 +568,101 @@ header {
     background: #58a6ff;
     cursor: pointer;
     border-radius: 50%;
-     border: 2px solid #161b22;
+    border: 2px solid #161b22;
+}
+.display-text-wrapper {
+  display: flex;
+}
+.char-display {
+  transition: color 0.2s;
+}
+.char-display.typed {
+  color: #58a6ff; /* タイプ済みの文字色 */
+}
+.fingering-guide {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: 0.5em;
+  opacity: 0.9;
+}
+.fingering-guide span {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 2px 0;
+  color: white;
+  font-weight: bold;
+}
+.fingering-guide span.typed {
+  opacity: 0.4;
+}
+/* ★★★ 左手と右手の色分け ★★★ */
+.finger-l { background-color: #3b82f6; } /* Blue */
+.finger-r { background-color: #f97316; } /* Orange */
+/* 各指ごとの色分け */
+.finger-l5 { background-color: #E91E63; }
+.finger-l4 { background-color: #2196F3; }
+.finger-l3 { background-color: #4CAF50; }
+.finger-l2 { background-color: #FFC107; color: #333;}
+.finger-r2 { background-color: #FF9800; }
+.finger-r3 { background-color: #4CAF50; }
+.finger-r4 { background-color: #2196F3; }
+.finger-r5 { background-color: #E91E63; }
+.next-word-button {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2em;
+    padding: 10px 20px;
+    border: 2px solid #2ed573;
+    background-color: rgba(46, 213, 115, 0.2);
+    color: #2ed573;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    z-index: 20;
+}
+.next-word-button:hover {
+    background-color: #2ed573;
+    color: #010409;
+    box-shadow: 0 0 15px #2ed573;
+}
+.drill-navigation {
+  position: absolute;
+  bottom: 80px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+.nav-button {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1em;
+    padding: 8px 16px;
+    border: 2px solid #2ed573;
+    background-color: rgba(46, 213, 115, 0.2);
+    color: #2ed573;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    z-index: 20;
+}
+.nav-button:hover {
+    background-color: #2ed573;
+    color: #010409;
+    box-shadow: 0 0 15px #2ed573;
+}
+.prev-button {
+  border-color: #f97316;
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #f97316;
+}
+.prev-button:hover {
+  background-color: #f97316;
+  box-shadow: 0 0 15px #f97316;
 }
 </style>
