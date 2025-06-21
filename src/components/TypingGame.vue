@@ -1,6 +1,7 @@
+<!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-wrapper" @click="focusInput">
-    <div class="game-container" ref="gameContainerRef">
+  <div class="game-wrapper">
+    <div class="game-container" ref="gameContainerRef" @click="focusInput">
       <header>
         <div class="stats">SCORE: <span>{{ score }}</span></div>
         <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -167,13 +168,11 @@ const spawnWord = () => {
     const wordData = japaneseWordList[Math.floor(Math.random() * japaneseWordList.length)];
     display = wordData.display;
     target = wordData.reading;
-    // ★★★ 日本語の文字幅をフォントサイズと等価として計算 ★★★
     fontMultiplier = fontSize; 
   } else {
     const wordData = englishWordList[Math.floor(Math.random() * englishWordList.length)];
     display = wordData;
     target = wordData;
-    // ★★★ 英語は従来の比率で計算 ★★★
     fontMultiplier = fontSize * 0.6; 
   }
   
@@ -183,7 +182,6 @@ const spawnWord = () => {
     display,
     target,
     typed: '',
-    // ★★★ はみ出し防止の計算をより安全に ★★★
     x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
     y: -fontSize,
     speed: currentBaseSpeed + Math.random() * 0.5,
@@ -237,7 +235,7 @@ watch(rawInput, (newValue, oldValue) => {
     }
 
     const typedChar = newValue.slice(oldValue.length);
-    if (!typedChar.match(/[a-z-]/i)) {
+    if (!typedChar.match(/[a-z0-9\/-]/i)) { // ★★★ スラッシュを追加 ★★★
         rawInput.value = oldValue;
         return;
     }
