@@ -1,84 +1,85 @@
-<!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-container" @click="focusInput">
-    <header>
-      <div class="stats">SCORE: <span>{{ score }}</span></div>
-      <div class="stats">LEVEL: <span>{{ level }}</span></div>
-      <div class="stats">LIVES: <span>{{ lives }}</span></div>
-    </header>
-    <div class="game-area" ref="gameAreaRef">
-      <div 
-        v-for="word in words" 
-        :key="word.id" 
-        class="word" 
-        :class="{ active: activeWord?.id === word.id }"
-        :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
-      >
-        <span class="display-text">{{ word.display }}</span>
-        <span v-if="language === 'Japanese' && word.typed.length > 0" class="reading-text">
-          <span class="typed">{{ word.typed }}</span>{{ word.target.substring(word.typed.length) }}
-        </span>
-      </div>
-      
-      <div v-if="gameState !== 'playing'" class="modal">
-        <div class="modal-content">
-          <div v-if="gameState === 'start'">
-              <h1>TYPING FALL</h1>
-              <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
-              
-              <div class="settings-container">
-                <div class="setting-group">
-                  <label>言語</label>
-                  <div class="difficulty-selector">
-                    <button @click="setLanguage('English')" :class="{ active: language === 'English' }">ENGLISH</button>
-                    <button @click="setLanguage('Japanese')" :class="{ active: language === 'Japanese' }">日本語</button>
+  <div class="game-wrapper" @click="focusInput">
+    <div class="game-container" ref="gameContainerRef">
+      <header>
+        <div class="stats">SCORE: <span>{{ score }}</span></div>
+        <div class="stats">LEVEL: <span>{{ level }}</span></div>
+        <div class="stats">LIVES: <span>{{ lives }}</span></div>
+      </header>
+      <div class="game-area" ref="gameAreaRef">
+        <div 
+          v-for="word in words" 
+          :key="word.id" 
+          class="word" 
+          :class="{ active: activeWord?.id === word.id }"
+          :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
+        >
+          <span class="display-text">{{ word.display }}</span>
+          <span v-if="language === 'Japanese' && word.typed.length > 0" class="reading-text">
+            <span class="typed">{{ word.typed }}</span>{{ word.target.substring(word.typed.length) }}
+          </span>
+        </div>
+        
+        <div v-if="gameState !== 'playing'" class="modal">
+          <div class="modal-content">
+            <div v-if="gameState === 'start'">
+                <h1>TYPING FALL</h1>
+                <p>PRACTICEモードでは速度が上がりません。<br>自分のペースで練習に集中できます。</p>
+                
+                <div class="settings-container">
+                  <div class="setting-group">
+                    <label>言語</label>
+                    <div class="difficulty-selector">
+                      <button @click="setLanguage('English')" :class="{ active: language === 'English' }">ENGLISH</button>
+                      <button @click="setLanguage('Japanese')" :class="{ active: language === 'Japanese' }">日本語</button>
+                    </div>
+                  </div>
+                  <div class="setting-group">
+                    <label>モード選択</label>
+                    <div class="difficulty-selector">
+                      <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
+                      <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
+                      <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
+                    </div>
+                  </div>
+                  <div class="setting-group">
+                    <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
+                    <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
+                  </div>
+                  <div v-if="difficulty === 'Practice'" class="setting-group">
+                    <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
+                    <input type="range" id="word-count-slider" min="1" max="10" step="1" v-model.number="practiceWordCount" class="slider">
                   </div>
                 </div>
-                <div class="setting-group">
-                  <label>モード選択</label>
-                  <div class="difficulty-selector">
-                    <button @click="setDifficulty('Practice')" :class="{ active: difficulty === 'Practice' }">PRACTICE</button>
-                    <button @click="setDifficulty('Normal')" :class="{ active: difficulty === 'Normal' }">NORMAL</button>
-                    <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
-                  </div>
-                </div>
-                <div class="setting-group">
-                  <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
-                  <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
-                </div>
-                <div v-if="difficulty === 'Practice'" class="setting-group">
-                  <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
-                  <input type="range" id="word-count-slider" min="1" max="10" step="1" v-model.number="practiceWordCount" class="slider">
-                </div>
-              </div>
-              
-              <button @click="startGame" class="start-button">START GAME</button>
-          </div>
-          <div v-if="gameState === 'gameover'">
-              <h1>GAME OVER</h1>
-              <h2>FINAL SCORE: {{ score }}</h2>
-              <button @click="startGame" class="start-button">RESTART</button>
+                
+                <button @click="startGame" class="start-button">START GAME</button>
+            </div>
+            <div v-if="gameState === 'gameover'">
+                <h1>GAME OVER</h1>
+                <h2>FINAL SCORE: {{ score }}</h2>
+                <button @click="startGame" class="start-button">RESTART</button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    
-    <div class="input-display">
-      <span>{{ displayInput }}</span>
-      <span class="input-cursor"></span>
-    </div>
+      
+      <div class="input-display">
+        <span>{{ displayInput }}</span>
+        <span class="input-cursor"></span>
+      </div>
 
-    <input
-      ref="hiddenInputRef"
-      type="text"
-      class="hidden-input"
-      v-model="rawInput"
-      @input="handleInput"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-    >
+      <input
+        ref="hiddenInputRef"
+        type="text"
+        class="hidden-input"
+        v-model="rawInput"
+        @input="handleInput"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+    </div>
   </div>
 </template>
 
@@ -102,7 +103,7 @@ let currentBaseSpeed = 1.0;
 let wordIdCounter = 0;
 
 const activeWord = ref<Word | null>(null);
-const rawInput = ref(''); // ★隠し入力欄に直接バインドする
+const rawInput = ref(''); 
 
 // --- Computed Properties ---
 const displayInput = computed(() => {
@@ -113,6 +114,7 @@ const displayInput = computed(() => {
 });
 
 // --- Template Refs ---
+const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
 const hiddenInputRef = ref<HTMLInputElement | null>(null);
 let animationFrameId: number;
@@ -214,42 +216,52 @@ const gameOver = () => {
 };
 
 const handleInput = (e: Event) => {
-  if (gameState.value !== 'playing') return;
-  const input = (e.target as HTMLInputElement).value.toLowerCase();
-  
-  if (language.value === 'English') {
-    const targetWord = words.value.find(w => w.target === input);
-    if (targetWord) {
-      wordCompleted(targetWord);
-    }
-  } else { // Japanese
-    if (activeWord.value) {
-      if (activeWord.value.target.startsWith(input)) {
-        activeWord.value.typed = input;
-        if (activeWord.value.typed === activeWord.value.target) {
-          wordCompleted(activeWord.value);
+    if (gameState.value !== 'playing') return;
+    
+    const newValue = (e.target as HTMLInputElement).value.toLowerCase();
+    
+    if(language.value === 'English') {
+        rawInput.value = newValue;
+        const targetWord = words.value.find(w => w.target === rawInput.value);
+        if(targetWord) {
+            wordCompleted(targetWord);
         }
-      } else {
-        // Mistype on an active word
-        rawInput.value = activeWord.value.typed; // Revert input
-      }
-    } else {
-      const targetWord = words.value.find(w => w.target.startsWith(input));
-      if (targetWord) {
-        activeWord.value = targetWord;
-        targetWord.typed = input;
-      } else {
-        rawInput.value = ''; // Clear if no word starts with this
-      }
+    } else { // Japanese
+        if(activeWord.value){
+            if(activeWord.value.target.startsWith(newValue)){
+                activeWord.value.typed = newValue;
+                 if (activeWord.value.typed === activeWord.value.target) {
+                    wordCompleted(activeWord.value);
+                }
+            } else {
+                rawInput.value = activeWord.value.typed; // Revert
+            }
+        } else {
+            const targetWord = words.value.find(w => w.target.startsWith(newValue));
+            if(targetWord){
+                activeWord.value = targetWord;
+                targetWord.typed = newValue;
+                rawInput.value = newValue;
+                if (targetWord.typed === targetWord.target) {
+                    wordCompleted(targetWord);
+                }
+            } else {
+                rawInput.value = ''; // No match
+            }
+        }
     }
-  }
 };
+
 
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
   words.value = words.value.filter(w => w.id !== word.id);
   activeWord.value = null;
   rawInput.value = '';
+  
+  if (hiddenInputRef.value) {
+      hiddenInputRef.value.value = '';
+  }
   
   if (score.value > level.value * 500) {
     level.value++;
@@ -263,23 +275,39 @@ const focusInput = () => {
   if(hiddenInputRef.value) hiddenInputRef.value.focus();
 };
 
+const handleViewportResize = () => {
+    if (gameContainerRef.value) {
+        // dvh単位はCSSで対応するため、JSでの高さ調整は不要
+    }
+};
+
 onMounted(() => {
-  // We handle all input through the hidden input now
+  // 物理キーボードのイベントは、隠し入力欄にリダイレクトする
+  window.addEventListener('keydown', focusInput);
 });
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', focusInput);
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
 
 <style scoped>
-/* (styleタグの中身は変更ありません) */
+/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
+.game-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100vh; 
-    height: 100dvh;
+    /* ★★★ iOSのキーボード問題に対応する最新のCSS単位 ★★★ */
+    height: 100dvh; 
+    max-height: 100dvh; 
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -414,7 +442,7 @@ header {
 }
 
 .modal h1 {
-    font-size: 4em;
+    font-size: 3em; /* モバイルを考慮して少し小さく */
     color: #58a6ff;
     text-shadow: 0 0 15px #58a6ff;
     margin-bottom: 20px;
