@@ -83,11 +83,11 @@
       <span class="input-cursor"></span>
     </div>
 
+    <!-- ★★★ 修正点: エラーの原因となっていた @input="handleInput" を削除 ★★★ -->
     <input
       ref="hiddenInputRef"
       type="text"
       class="hidden-input"
-      @input="handleInput"
       autocomplete="off"
       autocorrect="off"
       autocapitalize="off"
@@ -239,24 +239,18 @@ const handleKeyDown = (e: KeyboardEvent) => {
 
   if (e.key === 'Backspace') {
     currentInput.value = currentInput.value.slice(0, -1);
-    // ★★★ 修正点1: Backspace後に入力チェックを呼び出す ★★★
-    // これにより、文字を消した際に画面表示が正しく更新されます。
     checkInput();
     return;
   }
   
-  // ★★★ 修正点2: この条件式が'/'や'8'などを弾いていました ★★★
-  // e.key.length === 1 のチェックにすることで、単一の文字キー（記号や数字を含む）の入力を受け付けるようにします。
   if (e.key.length === 1) {
-    // toLowerCase() は、練習問題が小文字で統一されていることを前提として残します。
-    // これにより、CapsLockがオンの場合やShiftキーを押しながらでもアルファベットが入力できます。
     currentInput.value += e.key.toLowerCase();
     checkInput();
   }
 };
 
 const checkInput = () => {
-  const targetWord = words.value[0]; // In drill mode, there is only one word
+  const targetWord = words.value[0]; 
   if (!targetWord) return;
 
   if (targetWord.target.startsWith(currentInput.value)) {
@@ -265,7 +259,7 @@ const checkInput = () => {
       wordCompleted(targetWord);
     }
   } else {
-    currentInput.value = currentInput.value.slice(0, -1); // Mistype
+    currentInput.value = currentInput.value.slice(0, -1); 
   }
 };
 
@@ -273,7 +267,7 @@ const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
   
   if (difficulty.value === 'FingerDrill') {
-    words.value[0].typed = ''; // Reset typed
+    words.value[0].typed = ''; 
   } else {
     words.value = words.value.filter(w => w.id !== word.id);
   }
