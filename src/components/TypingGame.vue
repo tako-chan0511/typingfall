@@ -1,6 +1,5 @@
-<!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-container" @click="focusInput">
+  <div class="game-container" ref="gameContainerRef">
     <header>
       <div class="stats">SCORE: <span>{{ score }}</span></div>
       <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -70,7 +69,6 @@
       <span class="input-cursor"></span>
     </div>
 
-    <!-- ★★★ モバイル対応用の隠し入力欄 ★★★ -->
     <input
       ref="hiddenInputRef"
       type="text"
@@ -104,8 +102,9 @@ const practiceWordCount = ref(5);
 let currentBaseSpeed = 1.0;
 
 // --- Template Refs ---
+const gameContainerRef = ref<HTMLElement | null>(null);
 const gameAreaRef = ref<HTMLElement | null>(null);
-const hiddenInputRef = ref<HTMLInputElement | null>(null); // ★隠し入力欄への参照
+const hiddenInputRef = ref<HTMLInputElement | null>(null);
 let animationFrameId: number;
 
 const gameSettings = {
@@ -195,21 +194,19 @@ const gameOver = () => {
   cancelAnimationFrame(animationFrameId);
 };
 
-// ★★★ 物理キーボード用の入力処理 ★★★
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (gameState.value !== 'playing') return;
+  if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
   
+  e.preventDefault();
+
   if (e.key === 'Backspace') {
-    e.preventDefault();
     currentInput.value = currentInput.value.slice(0, -1);
   } else if (e.key.length === 1 && e.key.match(/[a-z0-9-]/i)) {
-    e.preventDefault();
     currentInput.value += e.key.toLowerCase();
     checkInput();
   }
 };
 
-// ★★★ モバイル用の入力処理 ★★★
 const handleMobileInput = (e: Event) => {
   const target = e.target as HTMLInputElement;
   currentInput.value = target.value.toLowerCase();
@@ -222,7 +219,6 @@ const checkInput = () => {
     score.value += words.value[index].text.length * 10;
     words.value.splice(index, 1);
     
-    // 入力欄をクリア
     currentInput.value = '';
     if(hiddenInputRef.value) {
       hiddenInputRef.value.value = '';
@@ -237,39 +233,46 @@ const checkInput = () => {
   }
 };
 
-// ★★★ 入力欄にフォーカスを当てる関数 ★★★
 const focusInput = () => {
   if(hiddenInputRef.value) {
     hiddenInputRef.value.focus();
   }
 }
 
+// ★★★ モバイル画面サイズ調整のためのロジック ★★★
+const handleViewportResize = () => {
+  if (window.visualViewport && gameContainerRef.value) {
+    const newHeight = window.visualViewport.height;
+    gameContainerRef.value.style.height = `${newHeight}px`;
+  }
+};
+
 // --- Lifecycle Hooks ---
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    handleViewportResize(); // 初期サイズを設定
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportResize);
+  }
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
 
 <style scoped>
-/* (既存のスタイルは変更なし) */
-.hidden-input {
-  position: absolute;
-  top: -9999px;
-  left: -9999px;
-  opacity: 0;
-  pointer-events: none;
-}
+/* ★★★ game-containerから固定の高さを削除 ★★★ */
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 95vh;
-    max-height: 900px;
+    /* height: 95vh; */ /* JavaScriptで動的に設定するため削除 */
+    /* max-height: 900px; */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -277,6 +280,7 @@ onUnmounted(() => {
     background-color: #010409;
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
+    transition: height 0.2s ease-out; /* 高さが変わる際にアニメーションさせる */
 }
 
 header {
@@ -287,6 +291,7 @@ header {
     border-bottom: 2px solid #30363d;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
+    flex-shrink: 0; /* ヘッダーが縮まないようにする */
 }
 
 .stats {
@@ -314,10 +319,6 @@ header {
 }
 
 .input-display {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
     padding: 15px;
     background-color: rgba(22, 27, 34, 0.9);
     border-top: 2px solid #30363d;
@@ -326,6 +327,7 @@ header {
     color: #58a6ff;
     letter-spacing: 4px;
     min-height: 40px;
+    flex-shrink: 0; /* 入力欄が縮まないようにする */
 }
 
 .input-cursor {
@@ -476,5 +478,11 @@ header {
     border-radius: 50%;
      border: 2px solid #161b22;
 }
-
+.hidden-input {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
 </style>
