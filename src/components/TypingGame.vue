@@ -241,28 +241,13 @@ const focusInput = () => {
   }
 }
 
-const handleViewportResize = () => {
-  if (window.visualViewport && gameContainerRef.value) {
-    const newHeight = window.visualViewport.height;
-    gameContainerRef.value.style.height = `${newHeight}px`;
-    gameContainerRef.value.scrollIntoView(false);
-  }
-};
-
 // --- Lifecycle Hooks ---
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', handleViewportResize);
-    handleViewportResize(); 
-  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
-  if (window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', handleViewportResize);
-  }
   cancelAnimationFrame(animationFrameId);
 });
 
@@ -272,8 +257,9 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100vh;
-    max-height: 100vh; 
+    /* ★★★ 修正点: dvh（Dynamic Viewport Height）を使用 ★★★ */
+    height: 100dvh; 
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -281,7 +267,7 @@ onUnmounted(() => {
     background-color: #010409;
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
-    transition: height 0.2s ease-out; 
+    /* transitionは不要になったため削除 */
 }
 
 header {
@@ -367,7 +353,6 @@ header {
     z-index: 10;
 }
 
-/* ★★★ モーダルのコンテンツをスクロール可能にするためのラッパー ★★★ */
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -376,7 +361,7 @@ header {
     text-align: center;
     width: 100%;
     max-height: 100%;
-    overflow-y: auto; /* ★ コンテンツがはみ出たらスクロール */
+    overflow-y: auto;
     padding: 20px;
     box-sizing: border-box;
 }
@@ -414,7 +399,7 @@ header {
     transition: all 0.3s ease;
     letter-spacing: 2px;
     border-radius: 6px;
-    flex-shrink: 0; /* ボタンが縮まないように */
+    flex-shrink: 0;
 }
 
 .start-button:hover {
