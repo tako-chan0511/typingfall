@@ -1,5 +1,5 @@
 <template>
-  <div class="game-container" ref="gameContainerRef">
+  <div class="game-container" ref="gameContainerRef" @click="focusInput">
     <header>
       <div class="stats">SCORE: <span>{{ score }}</span></div>
       <div class="stats">LEVEL: <span>{{ level }}</span></div>
@@ -239,11 +239,12 @@ const focusInput = () => {
   }
 }
 
-// ★★★ モバイル画面サイズ調整のためのロジック ★★★
 const handleViewportResize = () => {
   if (window.visualViewport && gameContainerRef.value) {
     const newHeight = window.visualViewport.height;
     gameContainerRef.value.style.height = `${newHeight}px`;
+    // キーボードが表示されたときに、一番下にスクロールして入力欄が見えるようにする
+    gameContainerRef.value.scrollIntoView(false);
   }
 };
 
@@ -252,7 +253,7 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', handleViewportResize);
-    handleViewportResize(); // 初期サイズを設定
+    handleViewportResize(); 
   }
 });
 
@@ -267,12 +268,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ★★★ game-containerから固定の高さを削除 ★★★ */
 .game-container {
     width: 100%;
     max-width: 800px;
-    /* height: 95vh; */ /* JavaScriptで動的に設定するため削除 */
-    /* max-height: 900px; */
+    height: 100vh; /* ★★★ まずは画面いっぱいに設定 */
+    max-height: 100vh; /* iOSでのvh問題を考慮 */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -280,7 +280,7 @@ onUnmounted(() => {
     background-color: #010409;
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
-    transition: height 0.2s ease-out; /* 高さが変わる際にアニメーションさせる */
+    transition: height 0.2s ease-out; 
 }
 
 header {
@@ -291,7 +291,7 @@ header {
     border-bottom: 2px solid #30363d;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
-    flex-shrink: 0; /* ヘッダーが縮まないようにする */
+    flex-shrink: 0; /* ★ ヘッダーが縮まないようにする */
 }
 
 .stats {
@@ -305,9 +305,10 @@ header {
 }
 
 .game-area {
-    flex-grow: 1;
+    flex-grow: 1; /* ★ 利用可能な残りのスペースをすべて埋める */
     position: relative;
     overflow: hidden;
+    min-height: 0; /* ★ Flexboxの縮小バグを防ぐための重要なおまじない */
 }
 
 .word {
@@ -327,9 +328,17 @@ header {
     color: #58a6ff;
     letter-spacing: 4px;
     min-height: 40px;
-    flex-shrink: 0; /* 入力欄が縮まないようにする */
+    flex-shrink: 0; /* ★ 入力欄が縮まないようにする */
 }
 
+/* (以下、他のスタイルは変更なし) */
+.hidden-input {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
 .input-cursor {
     display: inline-block;
     width: 12px;
@@ -477,12 +486,5 @@ header {
     cursor: pointer;
     border-radius: 50%;
      border: 2px solid #161b22;
-}
-.hidden-input {
-  position: absolute;
-  top: -9999px;
-  left: -9999px;
-  opacity: 0;
-  pointer-events: none;
 }
 </style>
