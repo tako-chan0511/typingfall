@@ -217,19 +217,18 @@ const gameOver = () => {
 
 const handleInput = (e: Event) => {
     if (gameState.value !== 'playing') return;
+    const input = (e.target as HTMLInputElement).value.toLowerCase();
     
-    const newValue = (e.target as HTMLInputElement).value.toLowerCase();
-    
-    if(language.value === 'English') {
-        rawInput.value = newValue;
+    if (language.value === 'English') {
+        rawInput.value = input;
         const targetWord = words.value.find(w => w.target === rawInput.value);
         if(targetWord) {
             wordCompleted(targetWord);
         }
     } else { // Japanese
         if(activeWord.value){
-            if(activeWord.value.target.startsWith(newValue)){
-                activeWord.value.typed = newValue;
+            if(activeWord.value.target.startsWith(input)){
+                activeWord.value.typed = input;
                  if (activeWord.value.typed === activeWord.value.target) {
                     wordCompleted(activeWord.value);
                 }
@@ -237,21 +236,16 @@ const handleInput = (e: Event) => {
                 rawInput.value = activeWord.value.typed; // Revert
             }
         } else {
-            const targetWord = words.value.find(w => w.target.startsWith(newValue));
+            const targetWord = words.value.find(w => w.target.startsWith(input));
             if(targetWord){
                 activeWord.value = targetWord;
-                targetWord.typed = newValue;
-                rawInput.value = newValue;
-                if (targetWord.typed === targetWord.target) {
-                    wordCompleted(targetWord);
-                }
+                targetWord.typed = input;
             } else {
                 rawInput.value = ''; // No match
             }
         }
     }
 };
-
 
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
@@ -276,28 +270,38 @@ const focusInput = () => {
 };
 
 const handleViewportResize = () => {
-    if (gameContainerRef.value) {
-        // dvh単位はCSSで対応するため、JSでの高さ調整は不要
+    if (gameContainerRef.value && window.visualViewport) {
+        const viewportHeight = window.visualViewport.height;
+        gameContainerRef.value.style.height = `${viewportHeight}px`;
     }
 };
 
 onMounted(() => {
-  // 物理キーボードのイベントは、隠し入力欄にリダイレクトする
-  window.addEventListener('keydown', focusInput);
+  window.addEventListener('keydown', (e) => {
+    if (gameState.value !== 'playing') return;
+    focusInput();
+    handleKeyDown(e);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    handleViewportResize();
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', focusInput);
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', handleViewportResize);
+  }
   cancelAnimationFrame(animationFrameId);
 });
 
 </script>
 
 <style scoped>
-/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
 .game-wrapper {
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -305,9 +309,7 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    /* ★★★ iOSのキーボード問題に対応する最新のCSS単位 ★★★ */
-    height: 100dvh; 
-    max-height: 100dvh; 
+    height: 100%; /* JSで動的に設定 */
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -316,8 +318,8 @@ onUnmounted(() => {
     box-shadow: 0 0 30px rgba(0, 128, 255, 0.2);
     position: relative;
     overflow: hidden;
+    transition: height 0.1s ease-out;
 }
-
 header {
     display: flex;
     justify-content: space-between;
@@ -328,24 +330,20 @@ header {
     border-top-right-radius: 10px;
     flex-shrink: 0;
 }
-
 .stats {
     font-size: 1.4em;
     letter-spacing: 2px;
 }
-
 .stats span {
     color: #58a6ff;
     font-weight: bold;
 }
-
 .game-area {
     flex-grow: 1;
     position: relative;
     overflow: hidden;
     min-height: 0;
 }
-
 .word {
     position: absolute;
     font-family: 'Share Tech Mono', monospace;
@@ -357,19 +355,15 @@ header {
     align-items: center;
     padding: 4px 8px;
 }
-
 .word.active {
   background-color: rgba(88, 166, 255, 0.2);
   border-radius: 6px;
   transform: scale(1.1);
   transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
-
-.display-text {
-  /* 日本語の表示スタイル */
-}
+.display-text {}
 .reading-text {
-  font-size: 0.6em; /* ローマ字を少し小さく */
+  font-size: 0.6em;
   opacity: 0.8;
   margin-top: 4px;
   background-color: rgba(0,0,0,0.5);
@@ -378,10 +372,9 @@ header {
   letter-spacing: 1px;
 }
 .typed {
-  color: #a5d6ff; /* タイプ済みの文字色 */
+  color: #a5d6ff;
   font-weight: bold;
 }
-
 .input-display {
     padding: 15px;
     background-color: rgba(22, 27, 34, 0.9);
@@ -427,7 +420,6 @@ header {
     align-items: center;
     z-index: 10;
 }
-
 .modal-content {
     display: flex;
     flex-direction: column;
@@ -440,27 +432,23 @@ header {
     padding: 20px;
     box-sizing: border-box;
 }
-
 .modal h1 {
-    font-size: 3em; /* モバイルを考慮して少し小さく */
+    font-size: 4em;
     color: #58a6ff;
     text-shadow: 0 0 15px #58a6ff;
     margin-bottom: 20px;
 }
-
 .modal h2 {
     font-size: 2em;
     margin: 20px 0;
     color: #c9d1d9;
 }
-
 .modal p {
     font-size: 1.2em;
     color: #8b949e;
     max-width: 90%;
     line-height: 1.6;
 }
-
 .start-button {
     font-family: 'Share Tech Mono', monospace;
     font-size: 1.5em;
@@ -475,13 +463,11 @@ header {
     border-radius: 6px;
     flex-shrink: 0;
 }
-
 .start-button:hover {
     background-color: #58a6ff;
     color: #010409;
     box-shadow: 0 0 20px #58a6ff;
 }
-
 .settings-container {
     display: flex;
     flex-direction: column;
@@ -490,7 +476,6 @@ header {
     align-items: center;
     width: 100%;
 }
-
 .setting-group {
     display: flex;
     flex-direction: column;
@@ -498,19 +483,16 @@ header {
     gap: 10px;
     width: 100%;
 }
-
 .setting-group label {
     font-size: 1.2em;
     color: #8b949e;
 }
-
 .difficulty-selector {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     justify-content: center;
 }
-
 .difficulty-selector button {
     font-family: 'Share Tech Mono', monospace;
     font-size: 1.1em;
@@ -523,13 +505,11 @@ header {
     border-radius: 6px;
     transition: all 0.3s ease;
 }
-
 .difficulty-selector button.active {
     border-color: #58a6ff;
     color: #58a6ff;
     box-shadow: 0 0 10px #58a6ff;
 }
-
 .slider {
     -webkit-appearance: none;
     width: 90%;
@@ -541,11 +521,9 @@ header {
     opacity: 0.7;
     transition: opacity .2s;
 }
-
 .slider:hover {
     opacity: 1;
 }
-
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -556,7 +534,6 @@ header {
     border-radius: 50%;
     border: 2px solid #161b22;
 }
-
 .slider::-moz-range-thumb {
     width: 24px;
     height: 24px;
