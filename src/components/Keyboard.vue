@@ -103,7 +103,7 @@ const keyboardLayout: KeyInfo[][] = [
         { key: ',', shifted: '<', display: ',', code: 'Comma' }, 
         { key: '.', shifted: '>', display: '.', code: 'Period' }, 
         { key: '/', shifted: '?', display: '/', code: 'Slash' }, 
-        { key: '\\', shifted: '_', display: '¥', code: 'BackslashIntl' }, // For Japanese keyboard layout
+        { key: '\\', shifted: '_', display: '\\', code: 'BackslashIntl' },
         { key: 'Shift', shifted: null, display: 'Shift', code: 'ShiftRight', size: 2.5, class: 'special-key' }
     ],
     // 5段目
