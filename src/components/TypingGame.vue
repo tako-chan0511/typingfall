@@ -7,6 +7,15 @@
       <div class="stats" v-if="difficulty !== 'FingerDrill'">LIVES: <span>{{ lives }}</span></div>
     </header>
     <div class="game-area" ref="gameAreaRef">
+      <!-- ★★★ 追加: 指練習モード用の説明文 ★★★ -->
+      <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-instructions">
+        <p><strong>指使いマスターモード</strong></p>
+        <p>
+          単語の下のガイド（L5:左小指～R5:右小指）を頼りに、<br>
+          同じ単語を繰り返し練習して、正しい指の動きを覚えよう！
+        </p>
+      </div>
+
       <div
         v-for="word in words"
         :key="word.id"
@@ -168,7 +177,8 @@ const spawnWord = () => {
     target: text,
     typed: '',
     x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
-    y: difficulty.value === 'FingerDrill' ? gameAreaRef.value.clientHeight / 2 - 100 : -fontSize,
+    // ★★★ 修正: 説明文のスペースを確保するため、Y座標を少し下げる ★★★
+    y: difficulty.value === 'FingerDrill' ? gameAreaRef.value.clientHeight / 2 - 40 : -fontSize,
     speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * 0.5,
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
     fingering: text.split('').map(char => ({ char, finger: getFinger(char) }))
@@ -217,17 +227,15 @@ const gameOver = () => {
   cancelAnimationFrame(animationFrameId);
 };
 
-// ★★★ 修正点1: スタート画面に戻るための関数を追加 ★★★
 const returnToStartScreen = () => {
   gameState.value = 'start';
-  cancelAnimationFrame(animationFrameId); // ゲームループを停止
+  cancelAnimationFrame(animationFrameId);
   words.value = [];
   currentInput.value = '';
   activeWordId.value = null;
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  // ★★★ 修正点2: Escキーの処理を最優先で行う ★★★
   if (e.key === 'Escape') {
     e.preventDefault();
     if (gameState.value !== 'start') {
@@ -257,7 +265,6 @@ const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key.length === 1) {
     e.preventDefault();
     
-    // 練習モードで単語完了後に再度入力があった場合、リセットして入力を開始
     if (difficulty.value === 'FingerDrill' && words.value.length > 0 && words.value[0].typed === words.value[0].target) {
       words.value[0].typed = ''; 
       currentInput.value = '';  
@@ -660,5 +667,32 @@ header {
 .prev-button:hover {
   background-color: #f97316;
   box-shadow: 0 0 15px #f97316;
+}
+/* ★★★ 追加: 指練習モード用の説明文スタイル ★★★ */
+.drill-instructions {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  padding: 15px;
+  background-color: rgba(22, 27, 34, 0.9);
+  color: #8b949e;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  z-index: 5;
+  font-size: 1.1em;
+  line-height: 1.6;
+}
+.drill-instructions p {
+  margin: 0;
+}
+.drill-instructions strong {
+  color: #58a6ff;
+  font-size: 1.3em;
+  display: block;
+  margin-bottom: 10px;
 }
 </style>
