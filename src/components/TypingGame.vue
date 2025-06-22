@@ -1,43 +1,64 @@
 <!-- src/components/TypingGame.vue -->
 <template>
-  <div class="game-container">
+  <!-- ゲーム全体のコンテナ。クリックでフォーカス、キー入力イベントを監視 -->
+  <div class="game-container" @click="focusInput" tabindex="-1">
+    <!-- ヘッダーエリア: スコア、レベル、ライフを表示 -->
     <header>
       <div class="stats">SCORE: <span>{{ score }}</span></div>
       <div class="stats">LEVEL: <span>{{ level }}</span></div>
       <div class="stats" v-if="difficulty !== 'FingerDrill'">LIVES: <span>{{ lives }}</span></div>
     </header>
+
+    <!-- メインのゲームエリア -->
     <div class="game-area" ref="gameAreaRef">
-      <div 
-        v-for="word in words" 
-        :key="word.id" 
-        class="word" 
-        :class="{ active: activeWord?.id === word.id }"
-        :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
-      >
-        <div class="display-text-wrapper">
-          <span
-            v-for="(char, index) in word.display.split('')"
-            :key="index"
-            :class="{ typed: word.typed.length > index }"
-            class="char-display"
-          >
-            {{ char }}
-          </span>
+      <!-- 単語や説明文が表示される中央のコンテンツエリア -->
+      <div class="game-main-content" ref="gameMainContentRef">
+        <!-- 指練習モード時の説明文 -->
+        <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-instructions">
+          <p><strong>指使いマスターモード</strong></p>
+          <p>
+            単語の下のガイドとキーボードを頼りに、<br>
+            正しい指の動きを繰り返し練習しよう！
+          </p>
         </div>
-        <div v-if="difficulty === 'FingerDrill'" class="fingering-guide">
-          <span v-for="(f, index) in word.fingering" :key="index" :class="['finger-' + f.finger.charAt(0).toLowerCase(), { typed: word.typed.length > index }]">
-            {{ f.finger }}
-          </span>
+
+        <!-- 画面に表示される単語のループ描画 -->
+        <div
+          v-for="word in words"
+          :key="word.id"
+          class="word"
+          :class="{ active: activeWordId === word.id }"
+          :style="wordStyles[word.id] || {}"
+        >
+          <!-- 単語のテキスト表示部分 -->
+          <div class="display-text-wrapper">
+            <span
+              v-for="(char, index) in word.display.split('')"
+              :key="index"
+              :class="{ typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }"
+              class="char-display"
+            >
+              {{ char }}
+            </span>
+          </div>
+          <!-- 指練習モード時の運指ガイド表示 -->
+          <div v-if="difficulty === 'FingerDrill'" class="fingering-guide">
+            <span v-for="(f, index) in word.fingering" :key="index" :class="['finger-' + f.finger.charAt(0).toLowerCase() + f.finger.charAt(1) , 'finger-hand-' + f.finger.charAt(0).toLowerCase(), { typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }]">
+              {{ f.finger }}
+            </span>
+          </div>
         </div>
       </div>
-      
+
+      <!-- スタート画面やゲームオーバー画面のモーダル表示 -->
       <div v-if="gameState !== 'playing'" class="modal">
         <div class="modal-content">
+          <!-- スタート画面 -->
           <div v-if="gameState === 'start'">
               <h1>TYPING FALL</h1>
               <p>指のホームポジションを意識して<br>正確なタイピングをマスターしよう！</p>
-              
               <div class="settings-container">
+                <!-- モード選択 -->
                 <div class="setting-group">
                   <label>モード選択</label>
                   <div class="difficulty-selector">
@@ -47,18 +68,20 @@
                     <button @click="setDifficulty('Hard')" :class="{ active: difficulty === 'Hard' }">HARD</button>
                   </div>
                 </div>
+                <!-- 初期速度設定 -->
                 <div class="setting-group" v-if="difficulty !== 'FingerDrill'">
                   <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
                   <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
                 </div>
+                <!-- 練習モードの単語数設定 -->
                 <div v-if="difficulty === 'Practice'" class="setting-group">
                   <label for="word-count-slider">単語の数: {{ practiceWordCount }}</label>
                   <input type="range" id="word-count-slider" min="1" max="10" step="1" v-model.number="practiceWordCount" class="slider">
                 </div>
               </div>
-              
               <button @click="startGame" class="start-button">START GAME</button>
           </div>
+          <!-- ゲームオーバー画面 -->
           <div v-if="gameState === 'gameover'">
               <h1>GAME OVER</h1>
               <h2>FINAL SCORE: {{ score }}</h2>
@@ -67,48 +90,47 @@
         </div>
       </div>
 
+      <!-- 画面下部のエリア（ナビゲーションとキーボード） -->
+      <div class="bottom-area">
+        <!-- 指練習モードのナビゲーションボタン -->
         <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-navigation">
-        <button @click="previousWord" class="nav-button prev-button">
-          (Shift+Space) 前の単語へ
-        </button>
-        <button @click="nextWord" class="nav-button next-button">
-          次の単語へ (Space)
-        </button>
+          <button @click="previousWord" class="nav-button prev-button">
+            (Shift+Space) 前の単語へ
+          </button>
+          <button @click="nextWord" class="nav-button next-button">
+            次の単語へ (Space)
+          </button>
+        </div>
+        <!-- 指練習モードの仮想キーボード -->
+        <Keyboard v-if="difficulty === 'FingerDrill' && gameState === 'playing'" :highlight-key="nextKeyToPress" />
       </div>
-
     </div>
-    
+
+    <!-- 現在の入力内容を表示するエリア -->
     <div class="input-display">
       <span>{{ currentInput }}</span>
       <span class="input-cursor"></span>
     </div>
 
-    <!-- ★★★ 修正点: エラーの原因となっていた @input="handleInput" を削除 ★★★ -->
-    <input
-      ref="hiddenInputRef"
-      type="text"
-      class="hidden-input"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-    >
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+// --- リアクティビティとライフサイクルフック ---
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, type CSSProperties } from 'vue';
+// --- 外部コンポーネントとデータ ---
+import Keyboard from './Keyboard.vue'; 
 import { englishWordList } from '../words_en';
-import { japaneseWordList } from '../words_ja';
 import { practiceWordList } from '../practiceWords';
 import { fingerMap } from '../fingering';
-import type { Word, GameState, Difficulty, Language, Fingering } from '../types';
+import type { Word, GameState, Difficulty } from '../types';
 
+// --- ゲーム状態管理 ---
 const score = ref(0);
 const level = ref(1);
 const lives = ref(5);
 const words = ref<Word[]>([]);
-const gameState = ref<GameState>('start');
+const gameState = ref<GameState>('start'); // 'start', 'playing', 'gameover'
 const difficulty = ref<Difficulty>('FingerDrill');
 const initialSpeed = ref(0.8);
 const practiceWordCount = ref(5);
@@ -116,24 +138,74 @@ let currentBaseSpeed = 1.0;
 let wordIdCounter = 0;
 let currentPracticeWordIndex = 0;
 
-const currentInput = ref(''); 
+// --- ユーザー入力とターゲット単語 ---
+const currentInput = ref('');
+const activeWordId = ref<number | null>(null);
 
-const activeWord = computed(() => words.value.find(w => w.typed.length > 0 && w.typed !== w.target));
-
-// --- Template Refs ---
+// --- DOM要素への参照 ---
 const gameAreaRef = ref<HTMLElement | null>(null);
-const hiddenInputRef = ref<HTMLInputElement | null>(null);
+const gameMainContentRef = ref<HTMLElement | null>(null);
 let animationFrameId: number;
 
+// --- ゲーム設定 ---
 const gameSettings = {
-  FingerDrill: { spawnRate: 9999, fontSize: 48 },
-  Practice: { spawnRate: 150, fontSize: 32 },
-  Normal: { spawnRate: 120, fontSize: 32 },
-  Hard: { spawnRate: 90, fontSize: 36 }
+  FingerDrill: { spawnRate: Infinity, fontSize: 48, approxCharWidth: 0.65 },
+  Practice: { spawnRate: 150, fontSize: 32, approxCharWidth: 0.6 },
+  Normal: { spawnRate: 120, fontSize: 32, approxCharWidth: 0.6 },
+  Hard: { spawnRate: 90, fontSize: 36, approxCharWidth: 0.6 }
 };
-
 const vibrantColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'];
 
+/**
+ * 長い単語が画面に収まるようにフォントサイズを動的に計算するComputedプロパティ
+ * @returns {object} 各単語IDをキーとし、CSSスタイルを値とするオブジェクト
+ */
+const wordStyles = computed(() => {
+    const gameArea = gameMainContentRef.value;
+    if (!gameArea) return {};
+
+    const containerWidth = gameArea.clientWidth - 20;
+    const styles: { [key: number]: CSSProperties } = {};
+
+    words.value.forEach(word => {
+        const settings = gameSettings[difficulty.value];
+        const defaultFontSize = settings.fontSize;
+        const wordWidth = word.target.length * (defaultFontSize * settings.approxCharWidth);
+        
+        const scale = wordWidth > containerWidth ? containerWidth / wordWidth : 1;
+        const finalFontSize = defaultFontSize * scale;
+
+        styles[word.id] = {
+            left: word.x + 'px',
+            top: word.y + 'px',
+            color: word.color,
+            fontSize: finalFontSize + 'px',
+            transform: 'translateX(-50%)',
+        };
+    });
+    return styles;
+});
+
+/**
+ * 指練習モードで次に押すべきキーを計算するComputedプロパティ
+ * @returns {string | null} ハイライトすべきキーの文字、またはnull
+ */
+const nextKeyToPress = computed(() => {
+  if (difficulty.value !== 'FingerDrill' || gameState.value !== 'playing') return null;
+  const word = words.value[0];
+  if (!word) return null;
+
+  if (word.typed === word.target) {
+      return ' '; // 単語完了後はスペースキーをハイライト
+  }
+  
+  const nextChar = word.target[currentInput.value.length];
+  return nextChar || null;
+});
+
+/**
+ * ゲームの初期化処理
+ */
 const initGame = () => {
   score.value = 0;
   level.value = 1;
@@ -143,6 +215,7 @@ const initGame = () => {
   currentBaseSpeed = initialSpeed.value;
   wordIdCounter = 0;
   currentInput.value = '';
+  activeWordId.value = null;
 
   if (difficulty.value === 'FingerDrill') {
     currentPracticeWordIndex = 0;
@@ -152,18 +225,34 @@ const initGame = () => {
   }
 };
 
+/**
+ * ゲームを開始する
+ */
 const startGame = () => {
   initGame();
   nextTick(focusInput);
   gameLoop();
 };
 
+/**
+ * 難易度を設定する
+ * @param {Difficulty} level - 選択された難易度
+ */
 const setDifficulty = (level: Difficulty) => { difficulty.value = level; };
 
+/**
+ * 文字に対応する運指を取得する
+ * @param {string} char - 対象の文字
+ * @returns {string} 運指ガイドの文字列 (例: 'L5')
+ */
 const getFinger = (char: string): string => fingerMap[char.toLowerCase()] || '??';
 
+/**
+ * 新しい単語を生成して画面に追加する
+ */
 const spawnWord = () => {
-  if (!gameAreaRef.value) return;
+  const gameArea = gameMainContentRef.value;
+  if (!gameArea) return;
 
   let text: string;
   if (difficulty.value === 'FingerDrill') {
@@ -179,19 +268,29 @@ const spawnWord = () => {
     display: text,
     target: text,
     typed: '',
-    x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
-    y: difficulty.value === 'FingerDrill' ? gameAreaRef.value.clientHeight / 2 - 100 : -fontSize,
+    x: difficulty.value === 'FingerDrill' ? gameArea.clientWidth / 2 : Math.random() * Math.max(0, gameArea.clientWidth - textWidth - 40) + 20,
+    y: difficulty.value === 'FingerDrill' ? 100 : -fontSize,
     speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * 0.5,
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
     fingering: text.split('').map(char => ({ char, finger: getFinger(char) }))
   };
   words.value.push(newWord);
+  if (difficulty.value === 'FingerDrill') {
+    activeWordId.value = newWord.id;
+  }
 };
 
+/**
+ * メインゲームループ。単語の落下処理と再描画を行う
+ */
 let frameCount = 0;
 const gameLoop = () => {
   if (gameState.value !== 'playing') return;
 
+  const gameArea = gameMainContentRef.value;
+  if (!gameArea) return;
+
+  // 通常モードと練習モードでの単語生成ロジック
   if (difficulty.value !== 'FingerDrill') {
     if (difficulty.value === 'Practice') {
       if (words.value.length < practiceWordCount.value) spawnWord();
@@ -201,11 +300,17 @@ const gameLoop = () => {
     }
   }
 
+  // 単語の落下処理
   for (let i = words.value.length - 1; i >= 0; i--) {
     const word = words.value[i];
     word.y += word.speed;
 
-    if (gameAreaRef.value && word.y > gameAreaRef.value.clientHeight) {
+    // 画面外に出た単語の処理
+    if (word.y > gameArea.clientHeight) {
+      if (activeWordId.value === word.id) {
+          activeWordId.value = null;
+          currentInput.value = '';
+      }
       words.value.splice(i, 1);
       if (difficulty.value !== 'FingerDrill') {
         lives.value--;
@@ -217,14 +322,42 @@ const gameLoop = () => {
   animationFrameId = requestAnimationFrame(gameLoop);
 };
 
+/**
+ * ゲームオーバー処理
+ */
 const gameOver = () => {
   gameState.value = 'gameover';
   cancelAnimationFrame(animationFrameId);
 };
 
+/**
+ * スタート画面に戻る処理
+ */
+const returnToStartScreen = () => {
+  gameState.value = 'start';
+  cancelAnimationFrame(animationFrameId);
+  words.value = [];
+  currentInput.value = '';
+  activeWordId.value = null;
+};
+
+/**
+ * キーボードイベントのハンドラ
+ * @param {KeyboardEvent} e - キーボードイベントオブジェクト
+ */
 const handleKeyDown = (e: KeyboardEvent) => {
+  // Escキーでスタート画面に戻る
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (gameState.value !== 'start') {
+      returnToStartScreen();
+    }
+    return;
+  }
+  
   if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
   
+  // 指練習モードでのナビゲーション
   if (e.key === ' ' && difficulty.value === 'FingerDrill') {
     e.preventDefault();
     if(e.shiftKey){
@@ -234,65 +367,122 @@ const handleKeyDown = (e: KeyboardEvent) => {
     }
     return;
   }
-  
-  e.preventDefault();
 
+  // Backspaceキーの処理
   if (e.key === 'Backspace') {
+    e.preventDefault();
     currentInput.value = currentInput.value.slice(0, -1);
-    checkInput();
     return;
   }
   
+  // 通常の文字キー入力処理
   if (e.key.length === 1) {
-    currentInput.value += e.key.toLowerCase();
-    checkInput();
-  }
-};
-
-const checkInput = () => {
-  const targetWord = words.value[0]; 
-  if (!targetWord) return;
-
-  if (targetWord.target.startsWith(currentInput.value)) {
-    targetWord.typed = currentInput.value;
-    if (targetWord.target === currentInput.value) {
-      wordCompleted(targetWord);
+    e.preventDefault();
+    
+    // 指練習モードで単語完了後に再度入力があった場合、状態をリセット
+    if (difficulty.value === 'FingerDrill' && words.value.length > 0 && words.value[0].typed === words.value[0].target) {
+      words.value[0].typed = ''; 
+      currentInput.value = '';  
     }
-  } else {
-    currentInput.value = currentInput.value.slice(0, -1); 
+    
+    currentInput.value += e.key;
   }
 };
 
+/**
+ * ユーザーの入力内容を監視し、タイピングの正誤判定を行う
+ */
+watch(currentInput, (newInput, oldInput) => {
+    // 指練習モードでは、常に最初の単語をアクティブにする
+    if (difficulty.value === 'FingerDrill' && words.value.length > 0 && activeWordId.value === null) {
+        activeWordId.value = words.value[0].id;
+    }
+
+    const activeWord = words.value.find(w => w.id === activeWordId.value);
+
+    if (activeWord) {
+        // 指練習モードで完了後、再入力を始めたらリセット
+        if (activeWord.typed === activeWord.target) {
+            activeWord.typed = '';
+        }
+
+        // 入力が正しいかチェック
+        if(activeWord.target.startsWith(newInput)) {
+            // 単語が完成したかチェック
+            if (activeWord.target === newInput) {
+                wordCompleted(activeWord);
+            }
+        } else {
+            // タイプミスの場合、入力を元に戻す
+            currentInput.value = oldInput;
+        }
+    } else {
+        // アクティブな単語がない場合、入力にマッチする単語を探す
+        const matchingWords = words.value.filter(w => w.target.startsWith(newInput));
+        
+        if (matchingWords.length === 1) {
+            // ターゲットが1つに確定した場合
+            const target = matchingWords[0];
+            activeWordId.value = target.id;
+            if (target.target === newInput) {
+                wordCompleted(target);
+            }
+        } else if (matchingWords.length === 0) {
+            currentInput.value = oldInput;
+        }
+    }
+});
+
+
+/**
+ * 単語を正しくタイプし終えたときの処理
+ * @param {Word} word - 完了した単語オブジェクト
+ */
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
   
   if (difficulty.value === 'FingerDrill') {
-    words.value[0].typed = ''; 
+    const completedWord = words.value.find(w => w.id === word.id);
+    if (completedWord) {
+        completedWord.typed = currentInput.value; // typedを更新して完了状態にする
+    }
+    currentInput.value = '';
+    activeWordId.value = null; // アクティブ状態を解除して、再入力を待つ
   } else {
+    // 他のモードでは単語を消す
     words.value = words.value.filter(w => w.id !== word.id);
+    currentInput.value = '';
+    activeWordId.value = null;
   }
   
-  currentInput.value = '';
-  
+  // レベルアップ処理
   if (score.value > level.value * 500 && difficulty.value !== 'Practice' && difficulty.value !== 'FingerDrill') {
     level.value++;
     currentBaseSpeed += 0.2;
   }
 };
 
+/**
+ * 指練習モードで次の単語に進む
+ */
 const nextWord = () => {
   if (difficulty.value !== 'FingerDrill') return;
   words.value = [];
   currentInput.value = '';
+  activeWordId.value = null;
   currentPracticeWordIndex = (currentPracticeWordIndex + 1) % practiceWordList.length;
   spawnWord();
   focusInput();
 }
 
+/**
+ * 指練習モードで前の単語に戻る
+ */
 const previousWord = () => {
   if (difficulty.value !== 'FingerDrill') return;
   words.value = [];
   currentInput.value = '';
+  activeWordId.value = null;
   currentPracticeWordIndex--;
   if (currentPracticeWordIndex < 0) {
     currentPracticeWordIndex = practiceWordList.length - 1;
@@ -301,10 +491,15 @@ const previousWord = () => {
   focusInput();
 }
 
+/**
+ * ゲームコンテナにフォーカスを当てる
+ */
 const focusInput = () => {
-  if(hiddenInputRef.value) hiddenInputRef.value.focus({ preventScroll: true });
+    const container = gameAreaRef.value?.closest('.game-container') as HTMLElement;
+    container?.focus();
 };
 
+// --- ライフサイクルフック ---
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
 });
@@ -318,7 +513,39 @@ onUnmounted(() => {
 
 
 <style scoped>
-/* ★★★ このラッパーが画面全体を占有し、中央配置の基準となる ★★★ */
+.game-container {
+    outline: none;
+}
+.fingering-guide {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: 0.5em;
+  opacity: 0.9;
+}
+.fingering-guide span {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 2px 0;
+  color: white;
+  font-weight: bold;
+}
+.fingering-guide span.typed {
+  opacity: 0.4;
+}
+.finger-hand-l { background-color: #c53030; }
+.finger-hand-r { background-color: #2c5282; }
+.finger-l5 { background-color: #E53E3E; }
+.finger-l4 { background-color: #DD6B20; }
+.finger-l3 { background-color: #ED8936; }
+.finger-l2 { background-color: #FBB6CE; color: #333;}
+.finger-r2 { background-color: #63B3ED; }
+.finger-r3 { background-color: #4299E1; }
+.finger-r4 { background-color: #3182CE; }
+.finger-r5 { background-color: #38B2AC; }
+
 .game-wrapper {
   width: 100vw;
   height: 100vh;
@@ -331,7 +558,7 @@ onUnmounted(() => {
 .game-container {
     width: 100%;
     max-width: 800px;
-    height: 100%; /* JSで動的に設定される */
+    height: 100%;
     display: flex;
     flex-direction: column;
     border: 2px solid #30363d;
@@ -365,9 +592,18 @@ header {
     position: relative;
     overflow: hidden;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
+.game-main-content {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+}
+
 .word {
     position: absolute;
+    transform: translateX(-50%);
     font-family: 'Share Tech Mono', monospace;
     font-weight: bold;
     text-shadow: 0 0 10px currentColor, 0 0 5px rgba(255,255,255,0.7);
@@ -380,22 +616,14 @@ header {
 .word.active {
   background-color: rgba(88, 166, 255, 0.2);
   border-radius: 6px;
-  transform: scale(1.1);
+  transform: translateX(-50%) scale(1.1);
   transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
-.display-text {}
-.reading-text {
-  font-size: 0.6em;
-  opacity: 0.8;
-  margin-top: 4px;
-  background-color: rgba(0,0,0,0.5);
-  padding: 2px 4px;
-  border-radius: 4px;
-  letter-spacing: 1px;
+.display-text-wrapper {
+  display: flex;
 }
-.typed {
+.char-display.typed {
   color: #a5d6ff;
-  font-weight: bold;
 }
 .input-display {
     padding: 15px;
@@ -407,15 +635,6 @@ header {
     letter-spacing: 4px;
     min-height: 40px;
     flex-shrink: 0;
-}
-.hidden-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
 }
 .input-cursor {
     display: inline-block;
@@ -564,73 +783,18 @@ header {
     border-radius: 50%;
     border: 2px solid #161b22;
 }
-.display-text-wrapper {
-  display: flex;
-}
-.char-display {
-  transition: color 0.2s;
-}
-.char-display.typed {
-  color: #58a6ff; /* タイプ済みの文字色 */
-}
-.fingering-guide {
-  display: flex;
-  gap: 2px;
-  margin-top: 8px;
-  font-size: 0.5em;
-  opacity: 0.9;
-}
-.fingering-guide span {
-  display: inline-block;
-  width: 24px;
-  text-align: center;
-  border-radius: 4px;
-  padding: 2px 0;
-  color: white;
-  font-weight: bold;
-}
-.fingering-guide span.typed {
-  opacity: 0.4;
-}
-/* ★★★ 左手と右手の色分け ★★★ */
-.finger-l { background-color: #3b82f6; } /* Blue */
-.finger-r { background-color: #f97316; } /* Orange */
-/* 各指ごとの色分け */
-.finger-l5 { background-color: #E91E63; }
-.finger-l4 { background-color: #2196F3; }
-.finger-l3 { background-color: #4CAF50; }
-.finger-l2 { background-color: #FFC107; color: #333;}
-.finger-r2 { background-color: #FF9800; }
-.finger-r3 { background-color: #4CAF50; }
-.finger-r4 { background-color: #2196F3; }
-.finger-r5 { background-color: #E91E63; }
-.next-word-button {
-    position: absolute;
-    bottom: 80px;
-    right: 20px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 1.2em;
-    padding: 10px 20px;
-    border: 2px solid #2ed573;
-    background-color: rgba(46, 213, 115, 0.2);
-    color: #2ed573;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-radius: 6px;
-    z-index: 20;
-}
-.next-word-button:hover {
-    background-color: #2ed573;
-    color: #010409;
-    box-shadow: 0 0 15px #2ed573;
+.bottom-area {
+    position: relative;
+    padding: 10px;
+    flex-shrink: 0; 
 }
 .drill-navigation {
-  position: absolute;
-  bottom: 80px;
   width: 100%;
+  max-width: 800px;
   display: flex;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 10px;
+  margin: 0 auto 20px;
   box-sizing: border-box;
 }
 .nav-button {
@@ -658,5 +822,31 @@ header {
 .prev-button:hover {
   background-color: #f97316;
   box-shadow: 0 0 15px #f97316;
+}
+.drill-instructions {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 550px;
+  padding: 8px;
+  background-color: rgba(22, 27, 34, 0.9);
+  color: #8b949e;
+  text-align: center;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  z-index: 5;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+.drill-instructions p {
+  margin: 0;
+}
+.drill-instructions strong {
+  color: #58a6ff;
+  font-size: 1.2em;
+  display: block;
+  margin-bottom: 5px;
 }
 </style>

@@ -1,1 +1,1 @@
-{"root":["./src/fingering.ts","./src/main.ts","./src/practicewords.ts","./src/types.ts","./src/vite-env.d.ts","./src/words_en.ts","./src/words_ja.ts","./src/app.vue","./src/components/typinggame.vue"],"errors":true,"version":"5.8.3"}
+{"root":["./src/fingering.ts","./src/main.ts","./src/practicewords.ts","./src/types.ts","./src/vite-env.d.ts","./src/words_en.ts","./src/words_ja.ts","./src/app.vue","./src/components/keyboard.vue","./src/components/typinggame.vue"],"version":"5.8.3"}

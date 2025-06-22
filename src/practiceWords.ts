@@ -28,5 +28,9 @@ export const practiceWordList: string[] = [
   "agile", "scrum", "sprint", "kanban", "debug", "refactor", "deploy", 
   "build", "test", "lint", "ci/cd", "singleton", "factory",
   "array", "object", "string", "number", "boolean", "null", "undefined",
-  "integer", "float", "double", "char", "binary", "hex", "utf-8", "ui/ux"
+  "integer", "float", "double", "char", "binary", "hex", "utf-8", "ui/ux",
+  //基本全体
+  "12qaz","3wsx","4edc","56rtfgvb","7yuhjnm","8ik,","9ol.","0-p;/",
+  "abcdefghijklmnopqrstuvwxyz","1234567890-", 
+  "qwertyuiop", "asdfghjkl;", "zxcvbnm,./",   
 ];
