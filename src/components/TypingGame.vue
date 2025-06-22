@@ -7,36 +7,37 @@
       <div class="stats" v-if="difficulty !== 'FingerDrill'">LIVES: <span>{{ lives }}</span></div>
     </header>
     <div class="game-area" ref="gameAreaRef">
-      <!-- ★★★ 追加: 指練習モード用の説明文 ★★★ -->
-      <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-instructions">
-        <p><strong>指使いマスターモード</strong></p>
-        <p>
-          単語の下のガイド（L5:左小指～R5:右小指）を頼りに、<br>
-          同じ単語を繰り返し練習して、正しい指の動きを覚えよう！
-        </p>
-      </div>
-
-      <div
-        v-for="word in words"
-        :key="word.id"
-        class="word"
-        :class="{ active: activeWordId === word.id }"
-        :style="{ left: word.x + 'px', top: word.y + 'px', color: word.color, fontSize: gameSettings[difficulty].fontSize + 'px' }"
-      >
-        <div class="display-text-wrapper">
-          <span
-            v-for="(char, index) in word.display.split('')"
-            :key="index"
-            :class="{ typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }"
-            class="char-display"
-          >
-            {{ char }}
-          </span>
+      <div class="game-main-content" ref="gameMainContentRef">
+        <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-instructions">
+          <p><strong>指使いマスターモード</strong></p>
+          <p>
+            単語の下のガイドとキーボードを頼りに、<br>
+            正しい指の動きを繰り返し練習しよう！
+          </p>
         </div>
-        <div v-if="difficulty === 'FingerDrill'" class="fingering-guide">
-          <span v-for="(f, index) in word.fingering" :key="index" :class="['finger-' + f.finger.charAt(0).toLowerCase() + f.finger.charAt(1) , 'finger-hand-' + f.finger.charAt(0).toLowerCase(), { typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }]">
-            {{ f.finger }}
-          </span>
+
+        <div
+          v-for="word in words"
+          :key="word.id"
+          class="word"
+          :class="{ active: activeWordId === word.id }"
+          :style="wordStyles[word.id] || {}"
+        >
+          <div class="display-text-wrapper">
+            <span
+              v-for="(char, index) in word.display.split('')"
+              :key="index"
+              :class="{ typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }"
+              class="char-display"
+            >
+              {{ char }}
+            </span>
+          </div>
+          <div v-if="difficulty === 'FingerDrill'" class="fingering-guide">
+            <span v-for="(f, index) in word.fingering" :key="index" :class="['finger-' + f.finger.charAt(0).toLowerCase() + f.finger.charAt(1) , 'finger-hand-' + f.finger.charAt(0).toLowerCase(), { typed: (activeWordId === word.id ? currentInput.length : word.typed.length) > index }]">
+              {{ f.finger }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -76,13 +77,16 @@
         </div>
       </div>
 
-      <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-navigation">
-        <button @click="previousWord" class="nav-button prev-button">
-          (Shift+Space) 前の単語へ
-        </button>
-        <button @click="nextWord" class="nav-button next-button">
-          次の単語へ (Space)
-        </button>
+      <div class="bottom-area">
+        <div v-if="difficulty === 'FingerDrill' && gameState === 'playing'" class="drill-navigation">
+          <button @click="previousWord" class="nav-button prev-button">
+            (Shift+Space) 前の単語へ
+          </button>
+          <button @click="nextWord" class="nav-button next-button">
+            次の単語へ (Space)
+          </button>
+        </div>
+        <Keyboard v-if="difficulty === 'FingerDrill' && gameState === 'playing'" :highlight-key="nextKeyToPress" />
       </div>
 
     </div>
@@ -96,7 +100,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import Keyboard from './Keyboard.vue'; 
 import { englishWordList } from '../words_en';
 import { practiceWordList } from '../practiceWords';
 import { fingerMap } from '../fingering';
@@ -117,18 +122,58 @@ let currentPracticeWordIndex = 0;
 const currentInput = ref('');
 const activeWordId = ref<number | null>(null);
 
-// --- Template Refs ---
 const gameAreaRef = ref<HTMLElement | null>(null);
+const gameMainContentRef = ref<HTMLElement | null>(null);
 let animationFrameId: number;
 
 const gameSettings = {
-  FingerDrill: { spawnRate: Infinity, fontSize: 48 },
-  Practice: { spawnRate: 150, fontSize: 32 },
-  Normal: { spawnRate: 120, fontSize: 32 },
-  Hard: { spawnRate: 90, fontSize: 36 }
+  FingerDrill: { spawnRate: Infinity, fontSize: 48, approxCharWidth: 0.65 },
+  Practice: { spawnRate: 150, fontSize: 32, approxCharWidth: 0.6 },
+  Normal: { spawnRate: 120, fontSize: 32, approxCharWidth: 0.6 },
+  Hard: { spawnRate: 90, fontSize: 36, approxCharWidth: 0.6 }
 };
 
 const vibrantColors = ['#ff4757', '#ff6348', '#ffa502', '#2ed573', '#1e90ff', '#70a1ff', '#5352ed', '#be2edd'];
+
+const wordStyles = computed(() => {
+    const gameArea = gameMainContentRef.value;
+    if (!gameArea) return {};
+
+    const containerWidth = gameArea.clientWidth - 20;
+    const styles: { [key: number]: object } = {};
+
+    words.value.forEach(word => {
+        const settings = gameSettings[difficulty.value];
+        const defaultFontSize = settings.fontSize;
+        const wordWidth = word.target.length * (defaultFontSize * settings.approxCharWidth);
+        
+        const scale = wordWidth > containerWidth ? containerWidth / wordWidth : 1;
+        const finalFontSize = defaultFontSize * scale;
+
+        styles[word.id] = {
+            left: word.x + 'px',
+            top: word.y + 'px',
+            color: word.color,
+            fontSize: finalFontSize + 'px',
+            transform: 'translateX(-50%)',
+        };
+    });
+    return styles;
+});
+
+const nextKeyToPress = computed(() => {
+  if (difficulty.value !== 'FingerDrill' || gameState.value !== 'playing') return null;
+  const word = words.value[0];
+  if (!word) return null;
+
+  if (word.typed === word.target) {
+      return ' ';
+  }
+  
+  const nextChar = word.target[currentInput.value.length];
+
+  return nextChar || null;
+});
 
 const initGame = () => {
   score.value = 0;
@@ -160,7 +205,8 @@ const setDifficulty = (level: Difficulty) => { difficulty.value = level; };
 const getFinger = (char: string): string => fingerMap[char.toLowerCase()] || '??';
 
 const spawnWord = () => {
-  if (!gameAreaRef.value) return;
+  const gameArea = gameMainContentRef.value;
+  if (!gameArea) return;
 
   let text: string;
   if (difficulty.value === 'FingerDrill') {
@@ -176,9 +222,8 @@ const spawnWord = () => {
     display: text,
     target: text,
     typed: '',
-    x: Math.random() * Math.max(0, gameAreaRef.value.clientWidth - textWidth - 40) + 20,
-    // ★★★ 修正: 説明文のスペースを確保するため、Y座標を少し下げる ★★★
-    y: difficulty.value === 'FingerDrill' ? gameAreaRef.value.clientHeight / 2 - 40 : -fontSize,
+    x: difficulty.value === 'FingerDrill' ? gameArea.clientWidth / 2 : Math.random() * Math.max(0, gameArea.clientWidth - textWidth - 40) + 20,
+    y: difficulty.value === 'FingerDrill' ? 100 : -fontSize,
     speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * 0.5,
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
     fingering: text.split('').map(char => ({ char, finger: getFinger(char) }))
@@ -193,6 +238,9 @@ let frameCount = 0;
 const gameLoop = () => {
   if (gameState.value !== 'playing') return;
 
+  const gameArea = gameMainContentRef.value;
+  if (!gameArea) return;
+
   if (difficulty.value !== 'FingerDrill') {
     if (difficulty.value === 'Practice') {
       if (words.value.length < practiceWordCount.value) spawnWord();
@@ -206,7 +254,7 @@ const gameLoop = () => {
     const word = words.value[i];
     word.y += word.speed;
 
-    if (gameAreaRef.value && word.y > gameAreaRef.value.clientHeight) {
+    if (word.y > gameArea.clientHeight) {
       if (activeWordId.value === word.id) {
           activeWordId.value = null;
           currentInput.value = '';
@@ -451,9 +499,18 @@ header {
     position: relative;
     overflow: hidden;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
+.game-main-content {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+}
+
 .word {
     position: absolute;
+    transform: translateX(-50%);
     font-family: 'Share Tech Mono', monospace;
     font-weight: bold;
     text-shadow: 0 0 10px currentColor, 0 0 5px rgba(255,255,255,0.7);
@@ -466,7 +523,7 @@ header {
 .word.active {
   background-color: rgba(88, 166, 255, 0.2);
   border-radius: 6px;
-  transform: scale(1.1);
+  transform: translateX(-50%) scale(1.1);
   transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out;
 }
 .display-text-wrapper {
@@ -633,13 +690,18 @@ header {
     border-radius: 50%;
     border: 2px solid #161b22;
 }
+.bottom-area {
+    position: relative;
+    padding: 10px;
+    flex-shrink: 0; 
+}
 .drill-navigation {
-  position: absolute;
-  bottom: 80px;
   width: 100%;
+  max-width: 800px;
   display: flex;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 10px;
+  margin: 0 auto 20px;
   box-sizing: border-box;
 }
 .nav-button {
@@ -668,31 +730,30 @@ header {
   background-color: #f97316;
   box-shadow: 0 0 15px #f97316;
 }
-/* ★★★ 追加: 指練習モード用の説明文スタイル ★★★ */
 .drill-instructions {
   position: absolute;
-  top: 30px;
+  top: 10px; /* ★★★ 修正: 説明文の位置を調整 ★★★ */
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
   max-width: 600px;
-  padding: 15px;
+  padding: 10px; /* ★★★ 修正: パディングを調整 ★★★ */
   background-color: rgba(22, 27, 34, 0.9);
   color: #8b949e;
   text-align: center;
   border-radius: 8px;
   border: 1px solid #30363d;
   z-index: 5;
-  font-size: 1.1em;
-  line-height: 1.6;
+  font-size: 1em; /* ★★★ 修正: フォントサイズを調整 ★★★ */
+  line-height: 1.5;
 }
 .drill-instructions p {
   margin: 0;
 }
 .drill-instructions strong {
   color: #58a6ff;
-  font-size: 1.3em;
+  font-size: 1.2em; /* ★★★ 修正: フォントサイズを調整 ★★★ */
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 </style>
