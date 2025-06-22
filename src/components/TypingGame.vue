@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, type CSSProperties } from 'vue'; // ★★★ 修正: CSSProperties をインポート ★★★
 import Keyboard from './Keyboard.vue'; 
 import { englishWordList } from '../words_en';
 import { practiceWordList } from '../practiceWords';
@@ -140,7 +140,7 @@ const wordStyles = computed(() => {
     if (!gameArea) return {};
 
     const containerWidth = gameArea.clientWidth - 20;
-    const styles: { [key: number]: object } = {};
+    const styles: { [key: number]: CSSProperties } = {}; // ★★★ 修正: 型を object から CSSProperties に変更 ★★★
 
     words.value.forEach(word => {
         const settings = gameSettings[difficulty.value];
@@ -732,19 +732,19 @@ header {
 }
 .drill-instructions {
   position: absolute;
-  top: 10px; /* ★★★ 修正: 説明文の位置を調整 ★★★ */
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
   max-width: 600px;
-  padding: 10px; /* ★★★ 修正: パディングを調整 ★★★ */
+  padding: 10px;
   background-color: rgba(22, 27, 34, 0.9);
   color: #8b949e;
   text-align: center;
   border-radius: 8px;
   border: 1px solid #30363d;
   z-index: 5;
-  font-size: 1em; /* ★★★ 修正: フォントサイズを調整 ★★★ */
+  font-size: 1em;
   line-height: 1.5;
 }
 .drill-instructions p {
@@ -752,7 +752,7 @@ header {
 }
 .drill-instructions strong {
   color: #58a6ff;
-  font-size: 1.2em; /* ★★★ 修正: フォントサイズを調整 ★★★ */
+  font-size: 1.2em;
   display: block;
   margin-bottom: 8px;
 }
