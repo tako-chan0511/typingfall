@@ -217,7 +217,25 @@ const gameOver = () => {
   cancelAnimationFrame(animationFrameId);
 };
 
+// ★★★ 修正点1: スタート画面に戻るための関数を追加 ★★★
+const returnToStartScreen = () => {
+  gameState.value = 'start';
+  cancelAnimationFrame(animationFrameId); // ゲームループを停止
+  words.value = [];
+  currentInput.value = '';
+  activeWordId.value = null;
+};
+
 const handleKeyDown = (e: KeyboardEvent) => {
+  // ★★★ 修正点2: Escキーの処理を最優先で行う ★★★
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (gameState.value !== 'start') {
+      returnToStartScreen();
+    }
+    return;
+  }
+  
   if (gameState.value !== 'playing' || e.metaKey || e.ctrlKey || e.altKey) return;
   
   if (e.key === ' ' && difficulty.value === 'FingerDrill') {
@@ -238,12 +256,18 @@ const handleKeyDown = (e: KeyboardEvent) => {
   
   if (e.key.length === 1) {
     e.preventDefault();
+    
+    // 練習モードで単語完了後に再度入力があった場合、リセットして入力を開始
+    if (difficulty.value === 'FingerDrill' && words.value.length > 0 && words.value[0].typed === words.value[0].target) {
+      words.value[0].typed = ''; 
+      currentInput.value = '';  
+    }
+    
     currentInput.value += e.key;
   }
 };
 
 watch(currentInput, (newInput, oldInput) => {
-    // 指練習モードの場合、常に最初の単語をアクティブにする
     if (difficulty.value === 'FingerDrill' && words.value.length > 0 && activeWordId.value === null) {
         activeWordId.value = words.value[0].id;
     }
@@ -251,9 +275,8 @@ watch(currentInput, (newInput, oldInput) => {
     const activeWord = words.value.find(w => w.id === activeWordId.value);
 
     if (activeWord) {
-        // ★★★ 修正点1: 練習モードで単語が完了した後の再入力をハンドリング ★★★
         if (activeWord.typed === activeWord.target) {
-            activeWord.typed = ''; // 完了状態をリセット
+            activeWord.typed = '';
         }
 
         if(activeWord.target.startsWith(newInput)) {
@@ -283,7 +306,6 @@ const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
   
   if (difficulty.value === 'FingerDrill') {
-    // ★★★ 修正点2: word.typed を更新して完了状態にする（見た目上） ★★★
     const completedWord = words.value.find(w => w.id === word.id);
     if (completedWord) {
         completedWord.typed = currentInput.value;
@@ -346,11 +368,6 @@ onUnmounted(() => {
 .game-container {
     outline: none;
 }
-/* ★★★ 修正点3: .completed スタイルを削除 ★★★ */
-/* .word.completed {
-    opacity: 0.5;
-} */
-
 .fingering-guide {
   display: flex;
   gap: 2px;
