@@ -76,10 +76,10 @@
                     <button @click="isSoundEnabled = false" :class="{ active: !isSoundEnabled }">OFF</button>
                   </div>
                 </div>
-                <!-- 初期速度設定 -->
+                <!-- ★★★ 修正: 速度「倍率」スライダーに変更 ★★★ -->
                 <div class="setting-group" v-if="difficulty !== 'FingerDrill'">
-                  <label for="speed-slider">初期速度: {{ initialSpeed.toFixed(2) }}</label>
-                  <input type="range" id="speed-slider" min="0.1" max="2.5" step="0.01" v-model.number="initialSpeed" class="slider">
+                  <label for="speed-slider">速度倍率: x{{ speedMultiplier.toFixed(1) }}</label>
+                  <input type="range" id="speed-slider" min="0.1" max="3.0" step="0.1" v-model.number="speedMultiplier" class="slider">
                 </div>
                 <!-- 練習モードの単語数設定 -->
                 <div v-if="difficulty === 'Practice'" class="setting-group">
@@ -143,7 +143,7 @@ const lives = ref(5);
 const words = ref<Word[]>([]);
 const gameState = ref<GameState>('start');
 const difficulty = ref<Difficulty>('FingerDrill');
-const initialSpeed = ref(0.8);
+const speedMultiplier = ref(1.0); // ★★★ 修正: `initialSpeed` から `speedMultiplier` に変更 ★★★
 const practiceWordCount = ref(5);
 let currentBaseSpeed = 1.0;
 let wordIdCounter = 0;
@@ -165,6 +165,7 @@ let wordCompleteSound: any = null;
 let isAudioInitialized = false;
 
 // --- ゲーム設定 ---
+const BASE_FALL_SPEED = 0.5; // ★★★ 追加: 速度倍率x1.0の時の基準速度
 const gameSettings = {
   FingerDrill: { spawnRate: Infinity, fontSize: 48, approxCharWidth: 0.65 },
   Practice: { spawnRate: 150, fontSize: 32, approxCharWidth: 0.6 },
@@ -233,7 +234,8 @@ const initGame = () => {
   lives.value = 5;
   words.value = [];
   gameState.value = 'playing';
-  currentBaseSpeed = initialSpeed.value;
+  // ★★★ 修正: 速度倍率を使って基本速度を計算 ★★★
+  currentBaseSpeed = BASE_FALL_SPEED * speedMultiplier.value;
   wordIdCounter = 0;
   currentInput.value = '';
   activeWordId.value = null;
@@ -250,7 +252,7 @@ const initGame = () => {
  * ゲームを開始する
  */
 const startGame = async () => {
-  await initAudio(); // ゲーム開始時にオーディオを初期化
+  await initAudio();
   initGame();
   nextTick(focusInput);
   gameLoop();
@@ -263,12 +265,18 @@ const spawnWord = () => {
   const gameArea = gameMainContentRef.value;
   if (!gameArea) return;
   let text = difficulty.value === 'FingerDrill' ? practiceWordList[currentPracticeWordIndex] : englishWordList[Math.floor(Math.random() * englishWordList.length)];
-  const { fontSize } = gameSettings[difficulty.value];
+  const { fontSize, approxCharWidth } = gameSettings[difficulty.value];
+  
+  const wordWidth = text.length * (fontSize * approxCharWidth);
+  const minX = (wordWidth / 2) + 20;
+  const maxX = gameArea.clientWidth - (wordWidth / 2) - 20;
+  
   const newWord: Word = {
     id: wordIdCounter++, display: text, target: text, typed: '',
-    x: difficulty.value === 'FingerDrill' ? gameArea.clientWidth / 2 : Math.random() * Math.max(0, gameArea.clientWidth - (text.length * fontSize * 0.6) - 40) + 20,
+    x: difficulty.value === 'FingerDrill' ? gameArea.clientWidth / 2 : Math.random() * (maxX - minX) + minX,
     y: difficulty.value === 'FingerDrill' ? 100 : -fontSize,
-    speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * 0.5,
+    // ★★★ 修正: 落下速度の計算に倍率を反映 ★★★
+    speed: difficulty.value === 'FingerDrill' ? 0 : currentBaseSpeed + Math.random() * (0.3 * speedMultiplier.value),
     color: vibrantColors[Math.floor(Math.random() * vibrantColors.length)],
     fingering: text.split('').map(char => ({ char, finger: getFinger(char) }))
   };
@@ -345,9 +353,6 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 };
 
-/**
- * ユーザーの入力内容を監視し、タイピングの正誤判定を行う
- */
 watch(currentInput, (newInput, oldInput) => {
     if (difficulty.value === 'FingerDrill' && words.value.length > 0 && activeWordId.value === null) {
         activeWordId.value = words.value[0].id;
@@ -356,43 +361,36 @@ watch(currentInput, (newInput, oldInput) => {
 
     if (activeWord) {
         if (activeWord.typed === activeWord.target) activeWord.typed = '';
-        
-        // ★★★ 修正: 正解時のみタイプ音を鳴らすロジック ★★★
         if(activeWord.target.startsWith(newInput)) {
-            if (isSoundEnabled.value && typeSound) {
-                // 音を鳴らすのは、入力が1文字増えた（＝正解した）場合のみ
-                if (newInput.length > oldInput.length) {
-                    typeSound.triggerAttackRelease("C5", "8n");
-                }
+            if (isSoundEnabled.value && typeSound && newInput.length > oldInput.length) {
+                typeSound.triggerAttackRelease("C5", "8n");
             }
             if (activeWord.target === newInput) {
                 wordCompleted(activeWord);
             }
         } else {
-            // タイプミスの場合、入力を元に戻す（音は鳴らさない）
             currentInput.value = oldInput;
         }
     } else {
         const matchingWords = words.value.filter(w => w.target.startsWith(newInput));
-        if (matchingWords.length === 1) {
-            const target = matchingWords[0];
-            if (isSoundEnabled.value && typeSound) typeSound.triggerAttackRelease("C5", "8n");
-            activeWordId.value = target.id;
-            if (target.target === newInput) {
-                wordCompleted(target);
+        if (matchingWords.length > 0) {
+            const targetWord = matchingWords.length > 1 
+                ? matchingWords.sort((a, b) => b.y - a.y)[0] 
+                : matchingWords[0];
+            
+            if (isSoundEnabled.value && typeSound && newInput.length > oldInput.length) {
+                typeSound.triggerAttackRelease("C5", "8n");
             }
-        } else if (matchingWords.length > 1) {
-            if (isSoundEnabled.value && typeSound) typeSound.triggerAttackRelease("C5", "8n");
-        }
-        else if (matchingWords.length === 0) {
+            activeWordId.value = targetWord.id;
+            if (targetWord.target === newInput) {
+                wordCompleted(targetWord);
+            }
+        } else {
             currentInput.value = oldInput;
         }
     }
 });
 
-/**
- * 単語を正しくタイプし終えたときの処理
- */
 const wordCompleted = (word: Word) => {
   score.value += word.target.length * 10;
   
@@ -413,7 +411,8 @@ const wordCompleted = (word: Word) => {
   }
   if (score.value > level.value * 500 && difficulty.value !== 'Practice' && difficulty.value !== 'FingerDrill') {
     level.value++;
-    currentBaseSpeed += 0.2;
+    // ★★★ 修正: レベルアップ時の速度上昇値を調整 ★★★
+    currentBaseSpeed += 0.05 * speedMultiplier.value;
   }
 };
 
@@ -451,7 +450,17 @@ onUnmounted(() => {
 
 
 <style scoped>
-/* スタイルは変更ありません */
+/* ★★★ 修正: アクティブな単語のハイライトを強化 ★★★ */
+.word.active {
+  background-color: rgba(88, 166, 255, 0.25);
+  border-radius: 8px;
+  transform: translateX(-50%) scale(1.15);
+  transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out, box-shadow 0.1s;
+  box-shadow: 0 0 15px rgba(88, 166, 255, 0.7);
+  z-index: 5;
+}
+
+/* 他のスタイルは変更ありません */
 .game-container { outline: none; }
 .fingering-guide { display: flex; gap: 2px; margin-top: 8px; font-size: 0.5em; opacity: 0.9; }
 .fingering-guide span { display: inline-block; width: 24px; text-align: center; border-radius: 4px; padding: 2px 0; color: white; font-weight: bold; }
@@ -474,7 +483,6 @@ header { display: flex; justify-content: space-between; padding: 15px 25px; back
 .game-area { flex-grow: 1; position: relative; overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
 .game-main-content { position: relative; width: 100%; flex-grow: 1; }
 .word { position: absolute; transform: translateX(-50%); font-family: 'Share Tech Mono', monospace; font-weight: bold; text-shadow: 0 0 10px currentColor, 0 0 5px rgba(255,255,255,0.7); white-space: nowrap; display: flex; flex-direction: column; align-items: center; padding: 4px 8px; }
-.word.active { background-color: rgba(88, 166, 255, 0.2); border-radius: 6px; transform: translateX(-50%) scale(1.1); transition: transform 0.1s ease-in-out, background-color 0.1s ease-in-out; }
 .display-text-wrapper { display: flex; }
 .char-display.typed { color: #a5d6ff; }
 .input-display { padding: 15px; background-color: rgba(22, 27, 34, 0.9); border-top: 2px solid #30363d; text-align: center; font-size: 2em; color: #58a6ff; letter-spacing: 4px; min-height: 40px; flex-shrink: 0; }
