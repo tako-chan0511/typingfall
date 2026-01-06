@@ -2,6 +2,8 @@
 
 // 各指をターゲットにした練習用単語リスト
 export const practiceWordList: string[] = [
+  //毎朝１０回やろう！
+  "abcdefghijklmnopqrstuvwxyz",
   // 左手小指 (q, a, z)
   "quiz", "aqua", "zone", "lazy", "maze",
   // 左手薬指 (w, s, x)
