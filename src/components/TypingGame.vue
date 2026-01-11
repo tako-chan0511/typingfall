@@ -45,7 +45,7 @@
         <div class="modal-content">
           <div v-if="gameState === 'start'">
               <h1>TYPING FALL</h1>
-              <p>指のホームポジションを意識して<br>正確なタイピングをマスターしよう！</p>
+              <p>指のホームポジションを意識して<br>ブラインドタッチをマスターしよう！</p>
               <div class="settings-container">
                 <div class="setting-group">
                   <label>モード選択</label>
